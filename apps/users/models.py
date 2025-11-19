@@ -73,9 +73,18 @@ class RiderProfile(models.Model):
 
 
 class OTP(models.Model):
+    METHOD_EMAIL = 'email'
+    METHOD_PHONE = 'phone'
+    METHOD_CHOICES = [
+        (METHOD_EMAIL, 'Email'),
+        (METHOD_PHONE, 'Phone'),
+    ]
+
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='otps', null=True, blank=True)
     phone = models.CharField(max_length=32, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
     code = models.CharField(max_length=8)
+    method = models.CharField(max_length=10, choices=METHOD_CHOICES, default=METHOD_PHONE)
     created_at = models.DateTimeField(auto_now_add=True)
     verified = models.BooleanField(default=False)
 
@@ -84,7 +93,8 @@ class OTP(models.Model):
         return (timezone.now() - self.created_at).total_seconds() > 300
 
     def __str__(self):
-        return f'OTP({self.phone or self.user})'
+        contact = self.email if self.method == self.METHOD_EMAIL else self.phone
+        return f'OTP({contact or self.user}, method={self.method})'
 
 
 class Device(models.Model):

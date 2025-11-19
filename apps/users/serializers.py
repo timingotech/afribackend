@@ -14,16 +14,24 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, required=False)
+    verification_method = serializers.ChoiceField(choices=['email', 'phone'], required=True)
 
     class Meta:
         model = User
-        fields = ['email', 'phone', 'password', 'password2', 'first_name', 'last_name', 'role']
+        fields = ['email', 'phone', 'password', 'password2', 'first_name', 'last_name', 'role', 'verification_method']
 
     def validate(self, data):
         password = data.get('password')
         password2 = data.get('password2', password)  # Use password as fallback if password2 not provided
         if password != password2:
             raise serializers.ValidationError('Passwords do not match')
+        
+        verification_method = data.get('verification_method')
+        if verification_method == 'email' and not data.get('email'):
+            raise serializers.ValidationError('Email is required when choosing email verification')
+        if verification_method == 'phone' and not data.get('phone'):
+            raise serializers.ValidationError('Phone is required when choosing phone verification')
+        
         return data
 
     def create(self, validated_data):

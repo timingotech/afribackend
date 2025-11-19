@@ -1,0 +1,82 @@
+"""
+Celery tasks for background processing (SMS, emails, notifications)
+"""
+from celery import shared_task
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_otp_sms_task(self, phone: str, code: str):
+    """
+    Async task to send OTP via SMS
+    
+    Args:
+        phone: Phone number
+        code: OTP code
+    """
+    from .sms import send_otp_sms
+    
+    try:
+        success = send_otp_sms(phone, code)
+        if success:
+            logger.info(f"OTP SMS sent to {phone}")
+        else:
+            logger.error(f"Failed to send OTP SMS to {phone}")
+        return {"success": success, "phone": phone}
+    except Exception as e:
+        logger.error(f"Error in send_otp_sms_task: {e}")
+        # Retry up to 3 times with exponential backoff
+        raise self.retry(exc=e, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_trip_notification_task(self, phone: str, trip_status: str, trip_details: str = ""):
+    """
+    Async task to send trip notification via SMS
+    
+    Args:
+        phone: Phone number
+        trip_status: Trip status (accepted, started, completed, etc)
+        trip_details: Additional trip information
+    """
+    from .sms import send_trip_notification
+    
+    try:
+        success = send_trip_notification(phone, trip_status, trip_details)
+        if success:
+            logger.info(f"Trip notification sent to {phone}: {trip_status}")
+        else:
+            logger.error(f"Failed to send trip notification to {phone}")
+        return {"success": success, "phone": phone, "status": trip_status}
+    except Exception as e:
+        logger.error(f"Error in send_trip_notification_task: {e}")
+        raise self.retry(exc=e, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_email_task(self, to_email: str, subject: str, message: str):
+    """
+    Async task to send email
+    
+    Args:
+        to_email: Email address
+        subject: Email subject
+        message: Email body
+    """
+    from django.core.mail import send_mail
+    
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email='noreply@aafriride.com',
+            recipient_list=[to_email],
+            fail_silently=False,
+        )
+        logger.info(f"Email sent to {to_email}")
+        return {"success": True, "email": to_email}
+    except Exception as e:
+        logger.error(f"Error sending email to {to_email}: {e}")
+        raise self.retry(exc=e, countdown=60)

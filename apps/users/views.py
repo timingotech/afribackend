@@ -35,33 +35,68 @@ class RegisterView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Automatically generate OTP after registration
-        if user.phone:
+        verification_method = serializer.validated_data.get('verification_method', 'phone')
+        
+        if verification_method == 'email':
+            # Send OTP via email
             code = str(random.randint(100000, 999999))
-            OTP.objects.create(user=user, phone=user.phone, code=code)
+            OTP.objects.create(user=user, email=user.email, code=code, method='email')
             
-            # Send SMS asynchronously via Celery
-            from .tasks import send_otp_sms_task
+            from .email import send_otp_email
             try:
-                send_otp_sms_task.delay(user.phone, code)
+                send_otp_email(user.email, code)
             except Exception as e:
-                print(f"Warning: Could not queue SMS task: {e}")
-                # Fall back to sync SMS if Celery not available
-                from .sms import send_otp_sms
-                send_otp_sms(user.phone, code)
+                print(f"Warning: Could not send OTP email: {e}")
+        
+        elif verification_method == 'phone':
+            # Send OTP via SMS
+            if user.phone:
+                code = str(random.randint(100000, 999999))
+                OTP.objects.create(user=user, phone=user.phone, code=code, method='phone')
+                
+                from .tasks import send_otp_sms_task
+                try:
+                    send_otp_sms_task.delay(user.phone, code)
+                except Exception as e:
+                    print(f"Warning: Could not queue SMS task: {e}")
+                    from .sms import send_otp_sms
+                    send_otp_sms(user.phone, code)
+        
+        # Send welcome email
+        from .email import send_welcome_email
+        try:
+            send_welcome_email(user.email, user.first_name)
+        except Exception as e:
+            print(f"Warning: Could not send welcome email: {e}")
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
-        user_phone = request.data.get('phone')
-        if user_phone and response.status_code == 201:
-            response.data['detail'] = 'User registered successfully. Check your phone for OTP verification code.'
-            response.data['phone'] = user_phone
-            # Get the latest OTP for this phone
-            try:
-                latest_otp = OTP.objects.filter(phone=user_phone).latest('created_at')
-                response.data['otp_code'] = latest_otp.code  # For testing purposes
-            except OTP.DoesNotExist:
-                pass
+        verification_method = request.data.get('verification_method', 'phone')
+        
+        if response.status_code == 201:
+            if verification_method == 'email':
+                user_email = request.data.get('email')
+                response.data['detail'] = 'User registered successfully. Check your email for OTP verification code.'
+                response.data['verification_method'] = 'email'
+                response.data['contact'] = user_email
+                # Get the latest OTP for this email
+                try:
+                    latest_otp = OTP.objects.filter(email=user_email, method='email').latest('created_at')
+                    response.data['otp_code'] = latest_otp.code  # For testing purposes
+                except OTP.DoesNotExist:
+                    pass
+            else:
+                user_phone = request.data.get('phone')
+                response.data['detail'] = 'User registered successfully. Check your phone for OTP verification code.'
+                response.data['verification_method'] = 'phone'
+                response.data['contact'] = user_phone
+                # Get the latest OTP for this phone
+                try:
+                    latest_otp = OTP.objects.filter(phone=user_phone, method='phone').latest('created_at')
+                    response.data['otp_code'] = latest_otp.code  # For testing purposes
+                except OTP.DoesNotExist:
+                    pass
+        
         return response
 
 
@@ -75,110 +110,72 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def generate_otp(request):
-    """
-    Generate OTP and send via email or SMS
+    method = request.data.get('method', 'phone')  # 'email' or 'phone'
     
-    Expected body:
-    {
-        "email": "user@example.com",  // OR
-        "phone": "+2349022013174",
-        "method": "email" or "sms"  // (optional, defaults to provided field)
-    }
-    """
-    phone = request.data.get('phone')
-    email = request.data.get('email')
-    method = request.data.get('method', 'sms' if phone else 'email')
-    
-    if not phone and not email:
-        return Response(
-            {'detail': 'Either phone or email is required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
-    code = str(random.randint(100000, 999999))
-    
-    # Create OTP record
-    if email:
-        otp = OTP.objects.create(phone=email, code=code)  # Use email as phone field temporarily
-    else:
-        otp = OTP.objects.create(phone=phone, code=code)
-    
-    # Send OTP via selected method
-    if method == 'email' or email:
-        from .email import send_otp_email
-        from .tasks import send_email_task
-        try:
-            send_email_task.delay(email, code) if email else None
-        except Exception as e:
-            print(f"Warning: Could not queue email task: {e}")
-            send_otp_email(email, code) if email else None
+    if method == 'email':
+        email = request.data.get('email')
+        if not email:
+            return Response({'detail': 'email required'}, status=status.HTTP_400_BAD_REQUEST)
+        code = str(random.randint(100000, 999999))
+        otp = OTP.objects.create(email=email, code=code, method='email')
         
-        return Response({
-            'email': email,
-            'code': code,
-            'detail': 'OTP sent to email',
-            'method': 'email'
-        }, status=status.HTTP_201_CREATED)
+        # Send OTP email
+        from .email import send_otp_email
+        try:
+            send_otp_email(email, code)
+        except Exception as e:
+            print(f"Warning: Could not send OTP email: {e}")
+        
+        return Response({'email': email, 'code': code, 'method': 'email', 'detail': 'OTP sent to email'})
     
-    else:  # SMS method
-        from .sms import send_otp_sms
+    else:  # phone method
+        phone = request.data.get('phone')
+        if not phone:
+            return Response({'detail': 'phone required'}, status=status.HTTP_400_BAD_REQUEST)
+        code = str(random.randint(100000, 999999))
+        otp = OTP.objects.create(phone=phone, code=code, method='phone')
+        
+        # Send SMS asynchronously via Celery
         from .tasks import send_otp_sms_task
         try:
             send_otp_sms_task.delay(phone, code)
         except Exception as e:
             print(f"Warning: Could not queue SMS task: {e}")
+            # Fall back to sync SMS if Celery not available
+            from .sms import send_otp_sms
             send_otp_sms(phone, code)
         
-        return Response({
-            'phone': phone,
-            'code': code,
-            'detail': 'OTP sent to phone',
-            'method': 'sms'
-        }, status=status.HTTP_201_CREATED)
+        return Response({'phone': phone, 'code': code, 'method': 'phone', 'detail': 'OTP sent to phone'})
 
 
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def verify_otp(request):
-    """
-    Verify OTP sent to email or phone
-    
-    Expected body:
-    {
-        "phone": "+2349022013174",  // OR
-        "email": "user@example.com",
-        "code": "123456"
-    }
-    """
-    phone = request.data.get('phone')
-    email = request.data.get('email')
+    method = request.data.get('method', 'phone')  # 'email' or 'phone'
     code = request.data.get('code')
     
-    if not code:
-        return Response({'detail': 'code required'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    if not phone and not email:
-        return Response({'detail': 'Either phone or email is required'}, status=status.HTTP_400_BAD_REQUEST)
-    
-    # Use email as the identifier if provided, otherwise phone
-    identifier = email if email else phone
-    
-    try:
-        otp = OTP.objects.filter(phone=identifier, code=code, verified=False).latest('created_at')
-    except OTP.DoesNotExist:
-        return Response({'detail': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+    if method == 'email':
+        email = request.data.get('email')
+        if not email or not code:
+            return Response({'detail': 'email and code required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            otp = OTP.objects.filter(email=email, code=code, verified=False, method='email').latest('created_at')
+        except OTP.DoesNotExist:
+            return Response({'detail': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+    else:  # phone method
+        phone = request.data.get('phone')
+        if not phone or not code:
+            return Response({'detail': 'phone and code required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            otp = OTP.objects.filter(phone=phone, code=code, verified=False, method='phone').latest('created_at')
+        except OTP.DoesNotExist:
+            return Response({'detail': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
     
     if otp.is_expired:
         return Response({'detail': 'OTP expired'}, status=status.HTTP_400_BAD_REQUEST)
-    
     otp.verified = True
     otp.save()
-    
-    return Response({
-        'detail': 'verified',
-        'identifier': identifier,
-        'type': 'email' if email else 'phone'
-    })
+    return Response({'detail': 'verified', 'method': method})
 
 
 class DeviceRegisterView(generics.CreateAPIView):
@@ -196,19 +193,13 @@ class ObtainTokenPairView(TokenObtainPairView):
         try:
             user = User.objects.get(email=email)
             # Skip OTP verification for admin users
-            if not user.is_staff:
-                # Check if user needs OTP verification (has phone or email set)
-                if user.phone or user.email:
-                    # Check if email OTP is verified
-                    email_verified = OTP.objects.filter(phone=user.email, verified=True).exists()
-                    # Check if phone OTP is verified
-                    phone_verified = OTP.objects.filter(phone=user.phone, verified=True).exists() if user.phone else False
-                    
-                    if not (email_verified or phone_verified):
-                        return Response(
-                            {'detail': 'Please verify your email or phone with OTP first. Use /api/users/otp/generate/ and /api/users/otp/verify/ endpoints.'},
-                            status=status.HTTP_403_FORBIDDEN
-                        )
+            if not user.is_staff and user.phone:
+                verified_otp = OTP.objects.filter(user=user, verified=True).exists()
+                if not verified_otp:
+                    return Response(
+                        {'detail': 'Please verify your phone number with OTP first. Use /api/users/otp/verify/ endpoint.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
         except User.DoesNotExist:
             pass
         
