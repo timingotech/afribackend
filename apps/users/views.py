@@ -15,6 +15,27 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    def perform_create(self, serializer):
+        user = serializer.save()
+        # Automatically generate OTP after registration
+        if user.phone:
+            code = str(random.randint(100000, 999999))
+            OTP.objects.create(user=user, phone=user.phone, code=code)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        user_phone = request.data.get('phone')
+        if user_phone and response.status_code == 201:
+            response.data['detail'] = 'User registered successfully. Check your phone for OTP verification code.'
+            response.data['phone'] = user_phone
+            # Get the latest OTP for this phone
+            try:
+                latest_otp = OTP.objects.filter(phone=user_phone).latest('created_at')
+                response.data['otp_code'] = latest_otp.code  # For testing purposes
+            except OTP.DoesNotExist:
+                pass
+        return response
+
 
 class ProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = ProfileSerializer
@@ -60,6 +81,23 @@ class DeviceRegisterView(generics.CreateAPIView):
 
 class ObtainTokenPairView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        try:
+            user = User.objects.get(email=email)
+            # Check if user has verified OTP
+            if user.phone:
+                verified_otp = OTP.objects.filter(user=user, verified=True).exists()
+                if not verified_otp:
+                    return Response(
+                        {'detail': 'Please verify your phone number with OTP first. Use /api/users/otp/verify/ endpoint.'},
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+        except User.DoesNotExist:
+            pass
+        
+        return super().post(request, *args, **kwargs)
 
 
 class RefreshTokenView(TokenRefreshView):
