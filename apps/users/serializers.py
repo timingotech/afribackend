@@ -8,7 +8,7 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone', 'first_name', 'last_name', 'role']
+        fields = ['id', 'email', 'phone', 'first_name', 'last_name', 'role', 'is_active', 'is_staff']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -41,7 +41,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email', 'phone', 'first_name', 'last_name', 'role']
+        fields = ['id', 'email', 'phone', 'first_name', 'last_name', 'role', 'is_active', 'is_staff']
 
 
 class DeviceSerializer(serializers.ModelSerializer):

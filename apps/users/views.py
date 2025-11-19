@@ -11,6 +11,15 @@ import random
 User = get_user_model()
 
 
+class ListUsersView(generics.ListAPIView):
+    """List all users (admin only)"""
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return User.objects.all()
+
+
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
