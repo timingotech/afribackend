@@ -86,8 +86,8 @@ class ObtainTokenPairView(TokenObtainPairView):
         email = request.data.get('email')
         try:
             user = User.objects.get(email=email)
-            # Check if user has verified OTP
-            if user.phone:
+            # Skip OTP verification for admin users
+            if not user.is_staff and user.phone:
                 verified_otp = OTP.objects.filter(user=user, verified=True).exists()
                 if not verified_otp:
                     return Response(
