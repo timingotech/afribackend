@@ -6,4 +6,4 @@ ASSUMPTIONS for backend implementation
 - WebSockets / realtime tracking are optional. The scaffold supports polling; for realtime recommend adding Django Channels or external socket server.
 - Admin actions use default Django admin only.
 - Rate-limiting and throttles should be added (e.g., DRF throttling, Redis-based limits). Not implemented in this initial scaffold but hooks are in settings.
-- Tests included are minimal; the project needs expanded unit/integration tests before productiion.
+- Tests included are minimal; the project needs expanded unit/integration tests before production.
