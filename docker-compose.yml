@@ -1,0 +1,31 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && gunicorn backend_project.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - .:/code
+      - ./media:/code/media
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aafridb}
+      POSTGRES_USER: ${POSTGRES_USER:-aafri}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aafri_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:

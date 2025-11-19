@@ -1,0 +1,77 @@
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+
+
+class Trip(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_ACCEPTED = 'accepted'
+    STATUS_ARRIVED = 'arrived'
+    STATUS_IN_PROGRESS = 'in_progress'
+    STATUS_COMPLETED = 'completed'
+    STATUS_CANCELED = 'canceled'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_ACCEPTED, 'Accepted'),
+        (STATUS_ARRIVED, 'Arrived'),
+        (STATUS_IN_PROGRESS, 'In Progress'),
+        (STATUS_COMPLETED, 'Completed'),
+        (STATUS_CANCELED, 'Canceled'),
+    ]
+
+    customer = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='customer_trips', on_delete=models.CASCADE)
+    rider = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='rider_trips', on_delete=models.SET_NULL, null=True, blank=True)
+
+    origin_address = models.CharField(max_length=255)
+    origin_lat = models.FloatField(null=True, blank=True)
+    origin_lng = models.FloatField(null=True, blank=True)
+
+    dest_address = models.CharField(max_length=255)
+    dest_lat = models.FloatField(null=True, blank=True)
+    dest_lng = models.FloatField(null=True, blank=True)
+
+    distance_km = models.FloatField(null=True, blank=True)
+    duration_min = models.FloatField(null=True, blank=True)
+
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    canceled_at = models.DateTimeField(null=True, blank=True)
+    canceled_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='cancellations', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def calculate_price(self, base=2.0, per_km=1.0, per_min=0.2, surge=1.0):
+        km = self.distance_km or 0
+        mins = self.duration_min or 0
+        self.price = (base + (per_km * km) + (per_min * mins)) * surge
+        return self.price
+
+    def accept(self, rider):
+        self.rider = rider
+        self.status = self.STATUS_ACCEPTED
+        self.accepted_at = timezone.now()
+        self.save()
+
+    def start(self):
+        self.status = self.STATUS_IN_PROGRESS
+        self.started_at = timezone.now()
+        self.save()
+
+    def end(self):
+        self.status = self.STATUS_COMPLETED
+        self.ended_at = timezone.now()
+        self.save()
+
+    def cancel(self, by_user=None):
+        self.status = self.STATUS_CANCELED
+        self.canceled_at = timezone.now()
+        self.canceled_by = by_user
+        self.save()
+
+    def __str__(self):
+        return f'Trip({self.pk}) {self.status}'
