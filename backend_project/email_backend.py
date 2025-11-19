@@ -28,13 +28,13 @@ class ZohoEmailBackend(DjangoEmailBackend):
                 
                 self.connection = smtplib.SMTP_SSL(
                     self.host, self.port,
-                    timeout=self.timeout,
+                    timeout=30,  # 30 second timeout
                     context=ssl_context
                 )
             else:
                 self.connection = smtplib.SMTP(
                     self.host, self.port,
-                    timeout=self.timeout
+                    timeout=30  # 30 second timeout
                 )
                 
                 if self.use_tls:

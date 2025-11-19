@@ -55,7 +55,7 @@ def send_trip_notification_task(self, phone: str, trip_status: str, trip_details
         raise self.retry(exc=e, countdown=60)
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, time_limit=30)
 def send_email_task(self, to_email: str, subject: str, message: str):
     """
     Async task to send email
@@ -71,7 +71,7 @@ def send_email_task(self, to_email: str, subject: str, message: str):
         send_mail(
             subject=subject,
             message=message,
-            from_email='noreply@aafriride.com',
+            from_email='support@aafriride.com',
             recipient_list=[to_email],
             fail_silently=False,
         )
@@ -79,4 +79,5 @@ def send_email_task(self, to_email: str, subject: str, message: str):
         return {"success": True, "email": to_email}
     except Exception as e:
         logger.error(f"Error sending email to {to_email}: {e}")
+        # Retry up to 3 times with exponential backoff
         raise self.retry(exc=e, countdown=60)

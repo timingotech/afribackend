@@ -37,37 +37,47 @@ class RegisterView(generics.CreateAPIView):
         user = serializer.save()
         verification_method = serializer.validated_data.get('verification_method', 'phone')
         
-        if verification_method == 'email':
-            # Send OTP via email
-            code = str(random.randint(100000, 999999))
-            OTP.objects.create(user=user, email=user.email, code=code, method='email')
-            
-            from .email import send_otp_email
-            try:
-                send_otp_email(user.email, code)
-            except Exception as e:
-                print(f"Warning: Could not send OTP email: {e}")
-        
-        elif verification_method == 'phone':
-            # Send OTP via SMS
-            if user.phone:
-                code = str(random.randint(100000, 999999))
-                OTP.objects.create(user=user, phone=user.phone, code=code, method='phone')
-                
-                from .tasks import send_otp_sms_task
-                try:
-                    send_otp_sms_task.delay(user.phone, code)
-                except Exception as e:
-                    print(f"Warning: Could not queue SMS task: {e}")
-                    from .sms import send_otp_sms
-                    send_otp_sms(user.phone, code)
-        
-        # Send welcome email
-        from .email import send_welcome_email
         try:
-            send_welcome_email(user.email, user.first_name)
+            if verification_method == 'email':
+                # Send OTP via email
+                code = str(random.randint(100000, 999999))
+                OTP.objects.create(user=user, email=user.email, code=code, method='email')
+                
+                # Try async first, fallback to sync
+                try:
+                    from .tasks import send_email_task
+                    send_email_task.delay(user.email, "Your AAfri Ride Verification Code", 
+                                         f"Your code is: {code}\n\nValid for 10 minutes.")
+                except Exception as e:
+                    print(f"Celery unavailable, using sync email: {e}")
+                    from .email import send_otp_email
+                    send_otp_email(user.email, code)
+            
+            elif verification_method == 'phone':
+                # Send OTP via SMS
+                if user.phone:
+                    code = str(random.randint(100000, 999999))
+                    OTP.objects.create(user=user, phone=user.phone, code=code, method='phone')
+                    
+                    from .tasks import send_otp_sms_task
+                    try:
+                        send_otp_sms_task.delay(user.phone, code)
+                    except Exception as e:
+                        print(f"Celery unavailable, using sync SMS: {e}")
+                        from .sms import send_otp_sms
+                        send_otp_sms(user.phone, code)
         except Exception as e:
-            print(f"Warning: Could not send welcome email: {e}")
+            print(f"Error in perform_create: {e}")
+            # Don't fail registration if OTP sending fails
+            pass
+        
+        # Send welcome email (best effort)
+        try:
+            from .tasks import send_email_task
+            send_email_task.delay(user.email, "Welcome to AAfri Ride!", 
+                                 f"Hello {user.first_name},\n\nWelcome to AAfri Ride!")
+        except Exception as e:
+            print(f"Could not send welcome email: {e}")
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
@@ -119,12 +129,18 @@ def generate_otp(request):
         code = str(random.randint(100000, 999999))
         otp = OTP.objects.create(email=email, code=code, method='email')
         
-        # Send OTP email
-        from .email import send_otp_email
+        # Try async email, fallback to sync
         try:
-            send_otp_email(email, code)
+            from .tasks import send_email_task
+            send_email_task.delay(email, "Your AAfri Ride Verification Code", 
+                                 f"Your code is: {code}\n\nValid for 10 minutes.")
         except Exception as e:
-            print(f"Warning: Could not send OTP email: {e}")
+            print(f"Celery unavailable, using sync email: {e}")
+            try:
+                from .email import send_otp_email
+                send_otp_email(email, code)
+            except Exception as sync_error:
+                print(f"Sync email also failed: {sync_error}")
         
         return Response({'email': email, 'code': code, 'method': 'email', 'detail': 'OTP sent to email'})
     
@@ -140,7 +156,7 @@ def generate_otp(request):
         try:
             send_otp_sms_task.delay(phone, code)
         except Exception as e:
-            print(f"Warning: Could not queue SMS task: {e}")
+            print(f"Celery unavailable, using sync SMS: {e}")
             # Fall back to sync SMS if Celery not available
             from .sms import send_otp_sms
             send_otp_sms(phone, code)
