@@ -135,8 +135,22 @@ CORS_ALLOW_ALL_ORIGINS = True
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_BROKER_URL = REDIS_URL
 
-# Email (console by default)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Email (Zoho Mail)
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.zoho.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@aafriride.com')
+
+# SMS Configuration (Twilio)
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN', '')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER', '')
+
+# SMS Provider (twilio or mock for testing)
+SMS_PROVIDER = os.getenv('SMS_PROVIDER', 'mock')  # Set to 'twilio' in production
 
 # drf-spectacular
 SPECTACULAR_SETTINGS = {
