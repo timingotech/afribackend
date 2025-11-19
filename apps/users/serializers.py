@@ -13,14 +13,16 @@ class UserSerializer(serializers.ModelSerializer):
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
-    password2 = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True, required=False)
 
     class Meta:
         model = User
         fields = ['email', 'phone', 'password', 'password2', 'first_name', 'last_name', 'role']
 
     def validate(self, data):
-        if data.get('password') != data.get('password2'):
+        password = data.get('password')
+        password2 = data.get('password2', password)  # Use password as fallback if password2 not provided
+        if password != password2:
             raise serializers.ValidationError('Passwords do not match')
         return data
 
