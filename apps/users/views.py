@@ -221,10 +221,27 @@ def verify_otp(request):
     otp.verified = True
     otp.save()
     
-    # Mark user as verified if OTP has associated user
+    # Mark user as verified
     if otp.user:
+        # If OTP has associated user, use it
         otp.user.is_verified = True
         otp.user.save()
+    elif method == 'email' and email:
+        # If OTP was for email, find user by email
+        try:
+            user = User.objects.get(email=email)
+            user.is_verified = True
+            user.save()
+        except User.DoesNotExist:
+            pass
+    elif method == 'phone' and phone:
+        # If OTP was for phone, find user by phone
+        try:
+            user = User.objects.get(phone=phone)
+            user.is_verified = True
+            user.save()
+        except User.DoesNotExist:
+            pass
     
     return Response({'detail': 'verified', 'method': method})
 
