@@ -127,10 +127,14 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    # Refresh token lifetime set to ~400 days so users remain logged-in until they logout
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=400),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
+
+# Optional override: longer access token lifetime (seconds) for admin users
+ADMIN_ACCESS_TOKEN_LIFETIME_SECONDS = int(os.getenv('ADMIN_ACCESS_TOKEN_LIFETIME_SECONDS', str(12 * 3600)))
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True

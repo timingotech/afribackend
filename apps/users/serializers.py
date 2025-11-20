@@ -5,6 +5,39 @@ from .models import CustomerProfile, RiderProfile, Device
 User = get_user_model()
 
 
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from datetime import datetime, timedelta
+from django.conf import settings
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """Extend TokenObtainPairSerializer to allow role-based access token lifetime.
+
+    If a user is staff/superuser or has role 'admin', we will issue an access token
+    with a longer TTL defined by `ADMIN_ACCESS_TOKEN_LIFETIME_SECONDS` in settings.
+    """
+    def validate(self, attrs):
+        # Perform the standard validation to authenticate the user
+        data = super().validate(attrs)
+
+        # Build fresh tokens so we can customise claims
+        refresh = RefreshToken.for_user(self.user)
+        access = refresh.access_token
+
+        # If user is admin/staff, extend access token expiry if configured
+        is_admin = getattr(self.user, 'is_staff', False) or getattr(self.user, 'is_superuser', False) or getattr(self.user, 'role', '') == 'admin'
+        if is_admin:
+            admin_secs = getattr(settings, 'ADMIN_ACCESS_TOKEN_LIFETIME_SECONDS', None)
+            if admin_secs:
+                exp = datetime.utcnow() + timedelta(seconds=int(admin_secs))
+                access['exp'] = int(exp.replace(tzinfo=None).timestamp())
+
+        data['refresh'] = str(refresh)
+        data['access'] = str(access)
+        return data
+
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User

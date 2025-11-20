@@ -3,10 +3,41 @@ from rest_framework.response import Response
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .serializers import CustomTokenObtainPairSerializer
 from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, DeviceSerializer
 from .models import OTP, Device
 from django.utils import timezone
 import random
+from rest_framework.permissions import IsAuthenticated
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def logout_view(request):
+    """Blacklist the provided refresh token or all outstanding tokens for the authenticated user."""
+    from rest_framework_simplejwt.tokens import RefreshToken
+    from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+
+    refresh = request.data.get('refresh')
+    if refresh:
+        try:
+            token = RefreshToken(refresh)
+            token.blacklist()
+            return Response({'detail': 'Refresh token blacklisted'})
+        except Exception:
+            return Response({'detail': 'Invalid token provided'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # No specific token provided: blacklist all outstanding tokens for this user
+    try:
+        tokens = OutstandingToken.objects.filter(user=request.user)
+        for t in tokens:
+            try:
+                BlacklistedToken.objects.get_or_create(token=t)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    return Response({'detail': 'All sessions logged out'})
 
 User = get_user_model()
 
@@ -247,6 +278,7 @@ class DeviceRegisterView(generics.CreateAPIView):
 
 class ObtainTokenPairView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
+    serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
