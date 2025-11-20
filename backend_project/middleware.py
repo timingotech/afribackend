@@ -79,11 +79,23 @@ class ErrorLoggingMiddleware:
             
             # Create error log using ErrorTrackingService
             user_email = request.user.email if request.user.is_authenticated else None
+            
+            # Extract detailed error message
+            if response_data:
+                # Try multiple common error field names
+                message = response_data.get('detail') or response_data.get('error') or response_data.get('message')
+                if isinstance(message, list):
+                    message = str(message[0]) if message else 'Unknown error'
+                else:
+                    message = str(message) if message else 'Unknown error'
+            else:
+                message = 'Unknown error'
+            
             ErrorTrackingService.log_frontend_error(
                 {
                     'error_type': error_type,
                     'title': title,
-                    'message': str(response_data.get('detail', response_data.get('error', 'Unknown error'))) if response_data else 'Unknown error',
+                    'message': message,
                     'severity': severity,
                     'status_code': status_code,
                     'endpoint': request.path,
