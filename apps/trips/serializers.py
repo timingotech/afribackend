@@ -13,3 +13,12 @@ class TripActionSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=['accept', 'arrived', 'start', 'end', 'cancel'])
     rider_id = serializers.IntegerField(required=False)
     cancel_reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class DriverLocationSerializer(serializers.Serializer):
+    lat = serializers.FloatField()
+    lng = serializers.FloatField()
+    speed = serializers.FloatField(required=False)
+    heading = serializers.FloatField(required=False)
+    accuracy = serializers.FloatField(required=False)
+    timestamp = serializers.DateTimeField(required=False)

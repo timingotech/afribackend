@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+import uuid
 
 
 class Trip(models.Model):
@@ -41,9 +42,13 @@ class Trip(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(null=True, blank=True)
+    arrived_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     canceled_at = models.DateTimeField(null=True, blank=True)
     canceled_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='cancellations', on_delete=models.SET_NULL, null=True, blank=True)
+    # Shareable tracking token and live flag
+    share_token = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    live_active = models.BooleanField(default=False)
 
     def calculate_price(self, base=2.0, per_km=1.0, per_min=0.2, surge=1.0):
         km = self.distance_km or 0
@@ -57,21 +62,93 @@ class Trip(models.Model):
         self.accepted_at = timezone.now()
         self.save()
 
+    def arrived(self):
+        self.status = self.STATUS_ARRIVED
+        self.arrived_at = timezone.now()
+        self.save()
+
     def start(self):
         self.status = self.STATUS_IN_PROGRESS
         self.started_at = timezone.now()
+        # generate a share token for live tracking viewers
+        if not self.share_token:
+            self.share_token = uuid.uuid4().hex
+        self.live_active = True
         self.save()
+        # Persist share token in Redis with TTL if Redis is configured
+        try:
+            from django.conf import settings
+            redis_url = getattr(settings, 'REDIS_URL', None)
+            if redis_url and self.share_token:
+                import redis
+                key = f"{getattr(settings, 'SHARE_TOKEN_REDIS_PREFIX', 'share:token:')}{self.share_token}"
+                r = redis.from_url(redis_url)
+                # store trip id for reverse lookup and set TTL
+                ttl = getattr(settings, 'SHARE_TOKEN_TTL_SECONDS', 6 * 3600)
+                r.setex(key, ttl, str(self.pk))
+        except Exception:
+            pass
 
     def end(self):
         self.status = self.STATUS_COMPLETED
         self.ended_at = timezone.now()
+        # revoke share token in Redis and clear live flag
+        try:
+            from django.conf import settings
+            redis_url = getattr(settings, 'REDIS_URL', None)
+            if redis_url and self.share_token:
+                import redis
+                key = f"{getattr(settings, 'SHARE_TOKEN_REDIS_PREFIX', 'share:token:')}{self.share_token}"
+                r = redis.from_url(redis_url)
+                try:
+                    r.delete(key)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self.live_active = False
+        self.share_token = None
         self.save()
 
     def cancel(self, by_user=None):
         self.status = self.STATUS_CANCELED
         self.canceled_at = timezone.now()
         self.canceled_by = by_user
+        # revoke share token when canceled
+        try:
+            from django.conf import settings
+            redis_url = getattr(settings, 'REDIS_URL', None)
+            if redis_url and self.share_token:
+                import redis
+                key = f"{getattr(settings, 'SHARE_TOKEN_REDIS_PREFIX', 'share:token:')}{self.share_token}"
+                r = redis.from_url(redis_url)
+                try:
+                    r.delete(key)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        self.live_active = False
+        self.share_token = None
         self.save()
 
     def __str__(self):
         return f'Trip({self.pk}) {self.status}'
+
+
+class DriverLocation(models.Model):
+    driver = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='locations', on_delete=models.CASCADE)
+    lat = models.FloatField()
+    lng = models.FloatField()
+    speed = models.FloatField(null=True, blank=True)
+    heading = models.FloatField(null=True, blank=True)
+    accuracy = models.FloatField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['lat', 'lng']),
+        ]
+
+    def __str__(self):
+        return f'DriverLocation({self.driver}, {self.lat},{self.lng})'

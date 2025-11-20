@@ -31,6 +31,8 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.notifications',
     'apps.errors',
+    # Async / realtime
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -135,6 +137,21 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Redis configuration (optional - kept for future use)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+
+# Share token TTL (seconds) for public tracking links. Default 6 hours.
+SHARE_TOKEN_TTL_SECONDS = int(os.getenv('SHARE_TOKEN_TTL_SECONDS', str(6 * 3600)))
+# Redis key prefix for share tokens
+SHARE_TOKEN_REDIS_PREFIX = os.getenv('SHARE_TOKEN_REDIS_PREFIX', 'share:token:')
+
+# Channels / channel layers
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [os.getenv('REDIS_URL', REDIS_URL)],
+        },
+    },
+}
 
 # Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
