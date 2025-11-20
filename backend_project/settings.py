@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     'apps.trips',
     'apps.payments',
     'apps.notifications',
+    'apps.errors',
 ]
 
 MIDDLEWARE = [
