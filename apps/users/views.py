@@ -71,55 +71,37 @@ class RegisterView(generics.CreateAPIView):
         
         try:
             if verification_method == 'email':
-                # Send OTP via email in background thread (non-blocking)
+                # Send OTP via email asynchronously using Celery
                 code = str(random.randint(100000, 999999))
                 otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Send email in background thread to avoid blocking HTTP response
-                import threading
-                from .email_utils import send_email_with_logging
-                
-                def send_email_async():
-                    """Send email with retry logic in background"""
-                    # Close existing DB connection and let Django create a new one in this thread
-                    from django.db import connection
-                    connection.close()
-                    
-                    max_attempts = 2
-                    for attempt in range(1, max_attempts + 1):
-                        try:
-                            print(f"[Attempt {attempt}/{max_attempts}] Sending OTP to {user.email}")
-                            # Get fresh OTP object in this thread
-                            from .models import OTP as OTPModel
-                            otp_obj = OTPModel.objects.get(pk=otp.pk)
-                            
-                            result = send_email_with_logging(
-                                to_email=user.email,
-                                subject="Your AAfri Ride Verification Code",
-                                message=f"Your code is: {code}\n\nValid for 5 minutes.",
-                                otp=otp_obj,
-                            )
-                            if result.get('success'):
-                                print(f"[OK] OTP email sent to {user.email} on attempt {attempt}")
-                                return
-                            else:
-                                print(f"[WARN] Attempt {attempt} failed: {result.get('result')}")
-                        except Exception as e:
-                            print(f"[ERROR] Attempt {attempt} exception: {e}")
-                            import traceback
-                            traceback.print_exc()
-                        
-                        # Wait before retry (except on last attempt)
-                        if attempt < max_attempts:
-                            import time
-                            time.sleep(2)
-                    
-                    print(f"[ERROR] All {max_attempts} email attempts failed for {user.email}")
-                
-                # Start background thread - NON-DAEMON so it completes even if request ends
-                thread = threading.Thread(target=send_email_async, daemon=False)
-                thread.start()
-                print(f"[OK] OTP email queued in background for {user.email}")
+                # Try Celery first, fall back to direct send if Celery unavailable
+                try:
+                    from .tasks import send_otp_email_task
+                    # Queue email task - will be processed by Celery worker
+                    send_otp_email_task.delay(user.email, code, otp.id)
+                    print(f"[OK] OTP email queued via Celery for {user.email}")
+                except Exception as celery_error:
+                    # Celery not available, send directly (will block but reliable)
+                    print(f"[WARN] Celery unavailable ({celery_error}), sending email directly")
+                    from django.core.mail import send_mail
+                    from django.conf import settings
+                    try:
+                        send_mail(
+                            subject="Your AAfri Ride Verification Code",
+                            message=f"Your code is: {code}\n\nValid for 5 minutes.",
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            recipient_list=[user.email],
+                            fail_silently=False,
+                        )
+                        otp.sent_at = timezone.now()
+                        otp.send_result = 1
+                        otp.save(update_fields=['sent_at', 'send_result'])
+                        print(f"[OK] OTP email sent directly to {user.email}")
+                    except Exception as email_error:
+                        print(f"[ERROR] Direct email failed: {email_error}")
+                        otp.send_error = str(email_error)
+                        otp.save(update_fields=['send_error'])
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
