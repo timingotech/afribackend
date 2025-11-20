@@ -35,8 +35,8 @@ class RegisterView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = serializer.save()
-        # Get verification_method from request data
-        verification_method = self.request.data.get('verification_method', 'phone')
+        # Get verification_method from user object (set in serializer.create())
+        verification_method = getattr(user, '_verification_method', self.request.data.get('verification_method', 'phone'))
         
         try:
             if verification_method == 'email':
@@ -47,16 +47,16 @@ class RegisterView(generics.CreateAPIView):
                 # Send email synchronously with error handling
                 try:
                     from django.core.mail import send_mail
-                    send_mail(
+                    result = send_mail(
                         subject="Your AAfri Ride Verification Code",
                         message=f"Your code is: {code}\n\nValid for 10 minutes.",
                         from_email='support@aafriride.com',
                         recipient_list=[user.email],
-                        fail_silently=True,  # Don't crash registration if email fails
+                        fail_silently=False,  # Let errors bubble up so we can see them
                     )
-                    print(f"[OK] Sent OTP email to {user.email}")
+                    print(f"[OK] Sent OTP email to {user.email} (result: {result})")
                 except Exception as e:
-                    print(f"[WARNING] Failed to send OTP email: {e}")
+                    print(f"[WARNING] Failed to send OTP email to {user.email}: {e}")
                     import traceback
                     traceback.print_exc()
             
@@ -71,7 +71,7 @@ class RegisterView(generics.CreateAPIView):
                         send_otp_sms(user.phone, code)
                         print(f"[OK] Sent OTP SMS to {user.phone}")
                     except Exception as e:
-                        print(f"[WARNING] Failed to send OTP SMS: {e}")
+                        print(f"[WARNING] Failed to send OTP SMS to {user.phone}: {e}")
         except Exception as e:
             print(f"[ERROR] in perform_create: {e}")
             import traceback
