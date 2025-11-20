@@ -38,7 +38,7 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
             connection = get_connection()
             email = EmailMessage(subject=subject, body=message, from_email=from_email, to=[to_email], connection=connection)
             result = email.send(fail_silently=False)
-                log_line += f"RESULT={result} (attempt {attempt + 1})\n"
+            log_line += f"RESULT={result} (attempt {attempt + 1})\n"
             with open(LOG_PATH, 'a', encoding='utf-8') as f:
                 f.write(log_line)
             logger.info(f"Email sent to {to_email} (result={result})")
@@ -74,8 +74,6 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
                 time.sleep(2)  # Wait 2 seconds before retry
             continue
     
-    # All attempts failed
-    if last_error:
     # All attempts failed
     if last_error:
         log_line += f"ERROR={last_error} (all attempts failed)\n"
