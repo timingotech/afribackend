@@ -4,8 +4,7 @@ Captures errors from API responses and stores them in database
 """
 
 import json
-from django.utils.deprecation import MiddlewareNotRequired
-from apps.notifications.models import ErrorLog
+from apps.errors.services import ErrorTrackingService
 
 
 class ErrorLoggingMiddleware:
@@ -78,18 +77,22 @@ class ErrorLoggingMiddleware:
             else:
                 return  # Don't log non-error responses
             
-            # Create error log
-            ErrorLog.objects.create(
-                error_type=error_type,
-                title=title,
-                message=str(response_data.get('detail', response_data.get('error', 'Unknown error'))) if response_data else 'Unknown error',
-                status_code=status_code,
-                user=request.user if request.user.is_authenticated else None,
-                endpoint=request.path,
-                method=request.method,
-                request_data=request_data,
-                response_data=response_data,
-                severity=severity,
+            # Create error log using ErrorTrackingService
+            user_email = request.user.email if request.user.is_authenticated else None
+            ErrorTrackingService.log_frontend_error(
+                {
+                    'error_type': error_type,
+                    'title': title,
+                    'message': str(response_data.get('detail', response_data.get('error', 'Unknown error'))) if response_data else 'Unknown error',
+                    'severity': severity,
+                    'status_code': status_code,
+                    'endpoint': request.path,
+                    'method': request.method,
+                    'request_data': request_data,
+                    'response_data': response_data,
+                    'user_email': user_email,
+                },
+                request=request
             )
         except Exception as e:
             import logging
