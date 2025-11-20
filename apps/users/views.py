@@ -50,7 +50,19 @@ class RegisterView(generics.CreateAPIView):
                                          f"Your code is: {code}\n\nValid for 10 minutes.")
                 except Exception as e:
                     print(f"Warning: Could not queue email task: {e}")
-                    # Don't try sync fallback - just log and continue
+                    # Fallback: Try to send synchronously if async fails
+                    try:
+                        from django.core.mail import send_mail
+                        send_mail(
+                            subject="Your AAfri Ride Verification Code",
+                            message=f"Your code is: {code}\n\nValid for 10 minutes.",
+                            from_email='support@aafriride.com',
+                            recipient_list=[user.email],
+                            fail_silently=False,
+                        )
+                        print(f"Synchronously sent OTP email to {user.email}")
+                    except Exception as sync_e:
+                        print(f"Warning: Sync email also failed: {sync_e}")
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
@@ -63,7 +75,13 @@ class RegisterView(generics.CreateAPIView):
                         send_otp_sms_task.delay(user.phone, code)
                     except Exception as e:
                         print(f"Warning: Could not queue SMS task: {e}")
-                        # Don't try sync fallback - just log and continue
+                        # Fallback: Try sync SMS
+                        try:
+                            from .sms import send_otp_sms
+                            send_otp_sms(user.phone, code)
+                            print(f"Synchronously sent OTP SMS to {user.phone}")
+                        except Exception as sync_e:
+                            print(f"Warning: Sync SMS also failed: {sync_e}")
         except Exception as e:
             print(f"Error in perform_create: {e}")
             import traceback
@@ -78,6 +96,7 @@ class RegisterView(generics.CreateAPIView):
                                  f"Hello {user.first_name},\n\nWelcome to AAfri Ride!")
         except Exception as e:
             print(f"Warning: Could not queue welcome email: {e}")
+            # Non-critical - don't even try sync fallback for welcome email
 
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
