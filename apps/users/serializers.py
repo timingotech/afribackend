@@ -14,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, required=False)
-    verification_method = serializers.ChoiceField(choices=['email', 'phone'], required=True)
+    verification_method = serializers.ChoiceField(choices=['email', 'phone'], required=True, write_only=True)
 
     class Meta:
         model = User
