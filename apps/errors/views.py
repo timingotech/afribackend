@@ -1,7 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
@@ -17,7 +17,6 @@ class ErrorLogViewSet(viewsets.ModelViewSet):
     
     queryset = ErrorLog.objects.all()
     serializer_class = ErrorLogSerializer
-    permission_classes = [IsAdminUser]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['severity', 'error_type', 'resolved']
     search_fields = ['title', 'message', 'endpoint', 'user_email']
@@ -25,8 +24,17 @@ class ErrorLogViewSet(viewsets.ModelViewSet):
     ordering = ['-created_at']
     pagination_class = None  # Allow large result sets for admin view
 
+    def get_permissions(self):
+        """Override permissions based on action"""
+        if self.action == 'log':
+            # Public endpoint for logging frontend errors
+            return []
+        else:
+            # Admin-only for other endpoints
+            return [IsAdminUser()]
+
     def get_serializer_class(self):
-        if self.action == 'create':
+        if self.action == 'create' or self.action == 'log':
             return ErrorCreateSerializer
         elif self.action == 'list':
             return ErrorListSerializer
