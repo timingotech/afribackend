@@ -21,11 +21,11 @@ data = {
 }
 
 print(f"Test Email: {test_email}")
-print("Making POST request to http://localhost:8000/api/users/register/\n")
+print("Making POST request to https://afribackend-production-e293.up.railway.app/api/users/register/\n")
 
 try:
     response = requests.post(
-        'http://localhost:8000/api/users/register/',
+        'https://afribackend-production-e293.up.railway.app/api/users/register/',
         json=data,
         timeout=10
     )
@@ -45,7 +45,7 @@ try:
         print("FAILED: Registration did not return 201")
         
 except requests.exceptions.ConnectionError:
-    print("ERROR: Could not connect to http://localhost:8000")
-    print("Make sure Django development server is running")
+    print("ERROR: Could not connect to Railway backend")
+    print("Make sure Railway backend is running")
 except Exception as e:
     print(f"ERROR: {e}")
