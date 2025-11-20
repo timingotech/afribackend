@@ -24,11 +24,11 @@ try:
         subject='Test Email from AAfri Ride',
         message='This is a test email from your AAfri Ride backend. If you received this, Zoho Mail is working!',
         from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=['support@aafriride.com'],
+        recipient_list=['oyenugaridwan@gmail.com'],
         fail_silently=False,
     )
     print("\n✅ EMAIL SENT SUCCESSFULLY!")
-    print("Check support@aafriride.com inbox for the test email.")
+    print("Check oyenugaridwan@gmail.com inbox for the test email.")
 except Exception as e:
     print(f"\n❌ Email Error: {e}")
     import traceback

@@ -80,22 +80,34 @@ class RegisterView(generics.CreateAPIView):
                 from .email_utils import send_email_with_logging
                 
                 def send_email_async():
-                    try:
-                        result = send_email_with_logging(
-                            to_email=user.email,
-                            subject="Your AAfri Ride Verification Code",
-                            message=f"Your code is: {code}\n\nValid for 5 minutes.",
-                            otp=otp,
-                        )
-                        if result.get('success'):
-                            print(f"[OK] OTP email sent to {user.email}")
-                        else:
-                            print(f"[ERROR] OTP email failed: {result.get('result')}")
-                    except Exception as e:
-                        print(f"[ERROR] Email thread exception: {e}")
+                    """Send email with retry logic in background"""
+                    max_attempts = 2
+                    for attempt in range(1, max_attempts + 1):
+                        try:
+                            print(f"[Attempt {attempt}/{max_attempts}] Sending OTP to {user.email}")
+                            result = send_email_with_logging(
+                                to_email=user.email,
+                                subject="Your AAfri Ride Verification Code",
+                                message=f"Your code is: {code}\n\nValid for 5 minutes.",
+                                otp=otp,
+                            )
+                            if result.get('success'):
+                                print(f"[OK] OTP email sent to {user.email} on attempt {attempt}")
+                                return
+                            else:
+                                print(f"[WARN] Attempt {attempt} failed: {result.get('result')}")
+                        except Exception as e:
+                            print(f"[ERROR] Attempt {attempt} exception: {e}")
+                        
+                        # Wait before retry (except on last attempt)
+                        if attempt < max_attempts:
+                            import time
+                            time.sleep(2)
+                    
+                    print(f"[ERROR] All {max_attempts} email attempts failed for {user.email}")
                 
-                # Start background thread - returns immediately
-                thread = threading.Thread(target=send_email_async, daemon=True)
+                # Start background thread - NON-DAEMON so it completes even if request ends
+                thread = threading.Thread(target=send_email_async, daemon=False)
                 thread.start()
                 print(f"[OK] OTP email queued in background for {user.email}")
             
