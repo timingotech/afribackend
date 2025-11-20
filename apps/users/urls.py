@@ -1,5 +1,10 @@
 from django.urls import path
-from .views import RegisterView, ListUsersView, UserDetailView, ProfileView, generate_otp, verify_otp, DeviceRegisterView, ObtainTokenPairView, RefreshTokenView, logout_view
+from .views import (
+    RegisterView, ListUsersView, UserDetailView, ProfileView, 
+    generate_otp, verify_otp, DeviceRegisterView, 
+    ObtainTokenPairView, RefreshTokenView, logout_view,
+    OTPListView, DeviceListView
+)
 
 urlpatterns = [
     path('', ListUsersView.as_view(), name='list_users'),
@@ -11,5 +16,7 @@ urlpatterns = [
     path('logout/', logout_view, name='logout'),
     path('otp/generate/', generate_otp, name='otp_generate'),
     path('otp/verify/', verify_otp, name='otp_verify'),
+    path('otps/', OTPListView.as_view(), name='otp_list'),  # Admin OTP list
     path('devices/', DeviceRegisterView.as_view(), name='device_register'),
+    path('devices/list/', DeviceListView.as_view(), name='device_list'),  # Admin device list
 ]

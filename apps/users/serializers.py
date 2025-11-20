@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import CustomerProfile, RiderProfile, Device
+from .models import CustomerProfile, RiderProfile, Device, OTP
 
 User = get_user_model()
 
@@ -95,3 +95,16 @@ class DeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Device
         fields = ['id', 'token', 'platform', 'created_at']
+
+
+class OTPSerializer(serializers.ModelSerializer):
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    
+    class Meta:
+        model = OTP
+        fields = [
+            'id', 'user', 'user_email', 'email', 'phone', 'code', 
+            'method', 'is_verified', 'created_at', 'expires_at',
+            'sent_at', 'send_result', 'send_error'
+        ]
+        read_only_fields = ['id', 'user', 'user_email', 'created_at']

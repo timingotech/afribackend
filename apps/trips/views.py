@@ -309,3 +309,14 @@ def driver_logout(request):
         pass
 
     return Response({'detail': 'ok'})
+
+
+from .models import DriverLocation
+
+class DriverLocationListView(generics.ListAPIView):
+    """List all driver locations (admin only)"""
+    serializer_class = DriverLocationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return DriverLocation.objects.all().order_by('-updated_at')

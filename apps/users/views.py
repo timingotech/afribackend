@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .serializers import CustomTokenObtainPairSerializer
-from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, DeviceSerializer
+from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, DeviceSerializer, OTPSerializer
 from .models import OTP, Device
 from django.utils import timezone
 import random
@@ -298,3 +298,41 @@ class ObtainTokenPairView(TokenObtainPairView):
 
 class RefreshTokenView(TokenRefreshView):
     permission_classes = [permissions.AllowAny]
+
+
+class OTPListView(generics.ListAPIView):
+    """List all OTPs (admin only)"""
+    serializer_class = OTPSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        queryset = OTP.objects.all().order_by('-created_at')
+        
+        # Filter by method
+        method = self.request.query_params.get('method')
+        if method:
+            queryset = queryset.filter(method=method)
+        
+        # Filter by verification status
+        is_verified = self.request.query_params.get('is_verified')
+        if is_verified is not None:
+            queryset = queryset.filter(is_verified=is_verified.lower() == 'true')
+        
+        # Search by email or phone
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            queryset = queryset.filter(
+                Q(email__icontains=search) | Q(phone__icontains=search) | Q(code__icontains=search)
+            )
+        
+        return queryset
+
+
+class DeviceListView(generics.ListAPIView):
+    """List all devices (admin only)"""
+    serializer_class = DeviceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        return Device.objects.all().order_by('-created_at')
