@@ -1,0 +1,6 @@
+2025-11-20T10:10:22.176925+00:00 | TO=test.email.config@gmail.com | SUBJECT=[TEST] email_utils | RESULT=1
+2025-11-20T10:11:52.744471+00:00 | TO=taonuga01@gmail.com | SUBJECT=[TEST] email_utils | RESULT=1
+2025-11-20T10:20:54.555377+00:00 | TO=taonuga01@gmail.com | SUBJECT=Your AAfri Ride Verification Code | RESULT=1
+2025-11-20T10:25:10.119358+00:00 | TO=taonuga01+local1763634304@gmail.com | SUBJECT=Your AAfri Ride Verification Code | RESULT=1
+2025-11-20T10:27:46.354428+00:00 | TO=taonuga01@gmail.com | SUBJECT=Your AAfri Ride Verification Code | RESULT=1
+2025-11-20T10:32:01.790492+00:00 | TO=taonuga01@gmail.com | SUBJECT=Your AAfri Ride Verification Code | RESULT=1

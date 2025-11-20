@@ -44,26 +44,26 @@ class RegisterView(generics.CreateAPIView):
                 code = str(random.randint(100000, 999999))
                 otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Send email synchronously with explicit error handling
-                from django.core.mail import send_mail
+                # Send email synchronously with explicit error handling + logging
                 from django.db import connection
-                
+                from .email_utils import send_email_with_logging
+
                 # Ensure database transaction is committed before sending email
-                connection.commit()
-                
                 try:
-                    result = send_mail(
-                        subject="Your AAfri Ride Verification Code",
-                        message=f"Your code is: {code}\n\nValid for 10 minutes.",
-                        from_email='support@aafriride.com',
-                        recipient_list=[user.email],
-                        fail_silently=False,
-                    )
-                    print(f"[OK] OTP email sent to {user.email}, result: {result}")
-                except Exception as email_error:
-                    print(f"[ERROR] Failed to send OTP email: {email_error}")
-                    import traceback
-                    traceback.print_exc()
+                    connection.commit()
+                except Exception:
+                    # If commit isn't available in the environment, continue
+                    pass
+
+                result = send_email_with_logging(
+                    to_email=user.email,
+                    subject="Your AAfri Ride Verification Code",
+                    message=f"Your code is: {code}\n\nValid for 10 minutes.",
+                )
+                if result.get('success'):
+                    print(f"[OK] OTP email queued/sent for {user.email} (result={result.get('result')})")
+                else:
+                    print(f"[ERROR] OTP email failed for {user.email}: {result.get('result')}")
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
