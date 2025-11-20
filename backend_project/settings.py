@@ -131,29 +131,8 @@ SIMPLE_JWT = {
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
 
-# Celery / Redis Configuration
+# Redis configuration (optional - kept for future use)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
-
-# Celery configuration
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TIMEZONE = 'UTC'
-CELERY_ENABLE_UTC = True
-CELERY_TASK_TRACK_STARTED = True
-CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
-CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60  # 25 minutes soft limit
-CELERY_WORKER_PREFETCH_MULTIPLIER = 4
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 1000
-
-# Celery task routes (optional)
-CELERY_TASK_ROUTES = {
-    'apps.users.tasks.send_email_task': {'queue': 'default'},
-    'apps.users.tasks.send_otp_sms_task': {'queue': 'default'},
-    'apps.users.tasks.send_trip_notification_task': {'queue': 'default'},
-}
 
 # Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')

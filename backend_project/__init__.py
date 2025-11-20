@@ -1,4 +1,2 @@
-# Import Celery app so it gets registered with Django
-from .celery import app as celery_app
+# Empty init file - Celery support removed in favor of synchronous email handling
 
-__all__ = ('celery_app',)

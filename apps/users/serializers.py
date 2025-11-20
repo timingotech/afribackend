@@ -36,7 +36,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2', None)
-        validated_data.pop('verification_method', None)  # Remove verification_method before creating user
+        verification_method = validated_data.pop('verification_method', 'phone')  # Extract but keep for OTP
         password = validated_data.pop('password')
         user = User.objects.create_user(**validated_data)
         user.set_password(password)
@@ -46,6 +46,9 @@ class RegisterSerializer(serializers.ModelSerializer):
             CustomerProfile.objects.get_or_create(user=user)
         elif user.role == User.RIDER:
             RiderProfile.objects.get_or_create(user=user)
+        
+        # Store verification_method in user object for view to access via serializer
+        user._verification_method = verification_method
         return user
 
 
