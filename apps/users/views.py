@@ -44,8 +44,8 @@ class RegisterView(generics.CreateAPIView):
                 OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
                 # Queue async email task (don't block on failure)
-                from .tasks import send_email_task
                 try:
+                    from .tasks import send_email_task
                     send_email_task.delay(user.email, "Your AAfri Ride Verification Code", 
                                          f"Your code is: {code}\n\nValid for 10 minutes.")
                 except Exception as e:
@@ -58,14 +58,16 @@ class RegisterView(generics.CreateAPIView):
                     code = str(random.randint(100000, 999999))
                     OTP.objects.create(user=user, phone=user.phone, code=code, method='phone')
                     
-                    from .tasks import send_otp_sms_task
                     try:
+                        from .tasks import send_otp_sms_task
                         send_otp_sms_task.delay(user.phone, code)
                     except Exception as e:
                         print(f"Warning: Could not queue SMS task: {e}")
                         # Don't try sync fallback - just log and continue
         except Exception as e:
             print(f"Error in perform_create: {e}")
+            import traceback
+            traceback.print_exc()
             # Don't fail registration if OTP sending fails
             pass
         
