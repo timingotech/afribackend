@@ -44,7 +44,7 @@ class RegisterView(generics.CreateAPIView):
                 code = str(random.randint(100000, 999999))
                 OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Send email synchronously
+                # Send email synchronously with error handling
                 try:
                     from django.core.mail import send_mail
                     send_mail(
@@ -52,11 +52,13 @@ class RegisterView(generics.CreateAPIView):
                         message=f"Your code is: {code}\n\nValid for 10 minutes.",
                         from_email='support@aafriride.com',
                         recipient_list=[user.email],
-                        fail_silently=False,
+                        fail_silently=True,  # Don't crash registration if email fails
                     )
                     print(f"[OK] Sent OTP email to {user.email}")
                 except Exception as e:
                     print(f"[WARNING] Failed to send OTP email: {e}")
+                    import traceback
+                    traceback.print_exc()
             
             elif verification_method == 'phone':
                 # Send OTP via SMS synchronously

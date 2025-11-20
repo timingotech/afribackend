@@ -4,6 +4,7 @@ This is needed for Windows Python SSL certificate verification issues
 """
 import ssl
 import smtplib
+import socket
 from django.core.mail.backends.smtp import EmailBackend as DjangoEmailBackend
 
 
@@ -14,7 +15,7 @@ class ZohoEmailBackend(DjangoEmailBackend):
     
     def open(self):
         """
-        Initiate a TLS (encrypted) connection.
+        Initiate a TLS (encrypted) connection with timeout.
         """
         if self.connection is not None:
             return False
@@ -28,13 +29,13 @@ class ZohoEmailBackend(DjangoEmailBackend):
                 
                 self.connection = smtplib.SMTP_SSL(
                     self.host, self.port,
-                    timeout=30,  # 30 second timeout
+                    timeout=10,  # 10 second timeout for connection
                     context=ssl_context
                 )
             else:
                 self.connection = smtplib.SMTP(
                     self.host, self.port,
-                    timeout=30  # 30 second timeout
+                    timeout=10  # 10 second timeout for connection
                 )
                 
                 if self.use_tls:
@@ -47,7 +48,11 @@ class ZohoEmailBackend(DjangoEmailBackend):
             if self.username and self.password:
                 self.connection.login(self.username, self.password)
             return True
-        except smtplib.SMTPException as err:
+        except (smtplib.SMTPException, socket.timeout, socket.error, OSError) as err:
             if not self.fail_silently:
-                raise
+                # Log but don't raise - allow request to continue
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to connect to SMTP server: {err}")
+            return False
 
