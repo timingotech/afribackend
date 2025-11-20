@@ -42,6 +42,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'backend_project.middleware.ErrorLoggingMiddleware',  # Log API errors
 ]
 
 ROOT_URLCONF = 'backend_project.urls'
