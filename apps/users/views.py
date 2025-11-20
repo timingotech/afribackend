@@ -81,15 +81,23 @@ class RegisterView(generics.CreateAPIView):
                 
                 def send_email_async():
                     """Send email with retry logic in background"""
+                    # Close existing DB connection and let Django create a new one in this thread
+                    from django.db import connection
+                    connection.close()
+                    
                     max_attempts = 2
                     for attempt in range(1, max_attempts + 1):
                         try:
                             print(f"[Attempt {attempt}/{max_attempts}] Sending OTP to {user.email}")
+                            # Get fresh OTP object in this thread
+                            from .models import OTP as OTPModel
+                            otp_obj = OTPModel.objects.get(pk=otp.pk)
+                            
                             result = send_email_with_logging(
                                 to_email=user.email,
                                 subject="Your AAfri Ride Verification Code",
                                 message=f"Your code is: {code}\n\nValid for 5 minutes.",
-                                otp=otp,
+                                otp=otp_obj,
                             )
                             if result.get('success'):
                                 print(f"[OK] OTP email sent to {user.email} on attempt {attempt}")
@@ -98,6 +106,8 @@ class RegisterView(generics.CreateAPIView):
                                 print(f"[WARN] Attempt {attempt} failed: {result.get('result')}")
                         except Exception as e:
                             print(f"[ERROR] Attempt {attempt} exception: {e}")
+                            import traceback
+                            traceback.print_exc()
                         
                         # Wait before retry (except on last attempt)
                         if attempt < max_attempts:

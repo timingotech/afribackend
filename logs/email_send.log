@@ -10,3 +10,4 @@
 2025-11-20T11:24:01.032285+00:00 | TO=taonuga01@gmail.com | SUBJECT=AAfri Ride OTP Test | RESULT=1
 2025-11-20T11:27:17.302322+00:00 | TO=taonuga01@gmail.com | SUBJECT=AAfri Ride OTP Test | RESULT=1
 2025-11-20T14:59:10.288606+00:00 | TO=sim-customer@example.com | SUBJECT=Sim OTP | RESULT=1
+2025-11-20T17:38:43.990992+00:00 | TO=oyenugaridwan@gmail.com | SUBJECT=Test from send_email_with_logging | RESULT=1 (attempt 1)
