@@ -59,6 +59,7 @@ class RegisterView(generics.CreateAPIView):
                     to_email=user.email,
                     subject="Your AAfri Ride Verification Code",
                     message=f"Your code is: {code}\n\nValid for 10 minutes.",
+                    otp=otp,
                 )
                 if result.get('success'):
                     print(f"[OK] OTP email queued/sent for {user.email} (result={result.get('result')})")

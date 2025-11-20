@@ -7,8 +7,13 @@ import os, sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend_project.settings')
 # ensure project root in path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from dotenv import load_dotenv
-load_dotenv()
+# Make dotenv optional so the script can run in environments where it's not installed
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except Exception:
+    # In production the environment variables are provided by Railway; dotenv isn't required
+    pass
 import django
 django.setup()
 

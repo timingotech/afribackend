@@ -88,6 +88,10 @@ class OTP(models.Model):
     method = models.CharField(max_length=10, choices=METHOD_CHOICES, default=METHOD_PHONE)
     created_at = models.DateTimeField(auto_now_add=True)
     verified = models.BooleanField(default=False)
+    # Tracks whether this OTP has been sent (email/SMS) and any error details
+    sent_at = models.DateTimeField(null=True, blank=True)
+    send_result = models.IntegerField(null=True, blank=True)
+    send_error = models.TextField(null=True, blank=True)
 
     @property
     def is_expired(self):
