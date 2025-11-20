@@ -38,25 +38,35 @@ class RegisterView(generics.CreateAPIView):
         # Get verification_method from user object (set in serializer.create())
         verification_method = getattr(user, '_verification_method', self.request.data.get('verification_method', 'phone'))
         
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[REGISTER] User created: {user.email}, verification_method: {verification_method}")
+        
         try:
             if verification_method == 'email':
                 # Send OTP via email synchronously
                 code = str(random.randint(100000, 999999))
-                OTP.objects.create(user=user, email=user.email, code=code, method='email')
+                otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
+                logger.info(f"[REGISTER] OTP created for {user.email}: {code}")
                 
                 # Send email synchronously with error handling
                 try:
                     from django.core.mail import send_mail
+                    logger.info(f"[REGISTER] Attempting to send OTP email to {user.email}")
+                    
                     result = send_mail(
                         subject="Your AAfri Ride Verification Code",
                         message=f"Your code is: {code}\n\nValid for 10 minutes.",
                         from_email='support@aafriride.com',
                         recipient_list=[user.email],
-                        fail_silently=False,  # Let errors bubble up so we can see them
+                        fail_silently=False,  # Let errors bubble up
                     )
+                    logger.info(f"[REGISTER] OTP email sent successfully to {user.email} (result: {result})")
                     print(f"[OK] Sent OTP email to {user.email} (result: {result})")
+                    
                 except Exception as e:
-                    print(f"[WARNING] Failed to send OTP email to {user.email}: {e}")
+                    logger.error(f"[REGISTER] Failed to send OTP email to {user.email}: {e}")
+                    print(f"[ERROR] Failed to send OTP email to {user.email}: {e}")
                     import traceback
                     traceback.print_exc()
             
@@ -65,21 +75,23 @@ class RegisterView(generics.CreateAPIView):
                 if user.phone:
                     code = str(random.randint(100000, 999999))
                     OTP.objects.create(user=user, phone=user.phone, code=code, method='phone')
+                    logger.info(f"[REGISTER] OTP created for {user.phone}: {code}")
                     
                     try:
                         from .sms import send_otp_sms
                         send_otp_sms(user.phone, code)
+                        logger.info(f"[REGISTER] OTP SMS sent to {user.phone}")
                         print(f"[OK] Sent OTP SMS to {user.phone}")
                     except Exception as e:
-                        print(f"[WARNING] Failed to send OTP SMS to {user.phone}: {e}")
+                        logger.error(f"[REGISTER] Failed to send OTP SMS: {e}")
+                        print(f"[ERROR] Failed to send OTP SMS: {e}")
         except Exception as e:
+            logger.error(f"[REGISTER] Error in perform_create: {e}")
             print(f"[ERROR] in perform_create: {e}")
             import traceback
             traceback.print_exc()
-            # Don't fail registration if OTP sending fails
-            pass
         
-        # Send welcome email synchronously (non-critical, allow to fail silently)
+        # Send welcome email synchronously (non-critical)
         try:
             from django.core.mail import send_mail
             send_mail(
@@ -89,8 +101,9 @@ class RegisterView(generics.CreateAPIView):
                 recipient_list=[user.email],
                 fail_silently=True,
             )
+            logger.info(f"[REGISTER] Welcome email sent to {user.email}")
         except Exception as e:
-            print(f"[WARNING] Failed to send welcome email: {e}")
+            logger.warning(f"[REGISTER] Failed to send welcome email: {e}")
 
     def create(self, request, *args, **kwargs):
         try:
