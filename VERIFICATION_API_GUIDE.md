@@ -1,7 +1,7 @@
 # Email/Phone Verification API Updates
 
 ## Overview
-The registration system now supports both email and phone-based OTP verification. Users can choose their preferred verification method during registration.
+The registration system now supports both email and phone-based OTP verification. Users can choose their preferred verification method during registration .
 
 ## Registration Endpoint
 **POST** `/api/users/register/`
