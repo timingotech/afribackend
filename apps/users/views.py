@@ -194,8 +194,15 @@ def verify_otp(request):
     
     if otp.is_expired:
         return Response({'detail': 'OTP expired'}, status=status.HTTP_400_BAD_REQUEST)
+    
     otp.verified = True
     otp.save()
+    
+    # Mark user as verified if OTP has associated user
+    if otp.user:
+        otp.user.is_verified = True
+        otp.user.save()
+    
     return Response({'detail': 'verified', 'method': method})
 
 
@@ -213,14 +220,12 @@ class ObtainTokenPairView(TokenObtainPairView):
         email = request.data.get('email')
         try:
             user = User.objects.get(email=email)
-            # Skip OTP verification for admin users
-            if not user.is_staff and user.phone:
-                verified_otp = OTP.objects.filter(user=user, verified=True).exists()
-                if not verified_otp:
-                    return Response(
-                        {'detail': 'Please verify your phone number with OTP first. Use /api/users/otp/verify/ endpoint.'},
-                        status=status.HTTP_403_FORBIDDEN
-                    )
+            # Require email/phone verification for non-staff users
+            if not user.is_staff and not user.is_verified:
+                return Response(
+                    {'detail': 'Please verify your email/phone with OTP first. Use /api/users/otp/verify/ endpoint.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
         except User.DoesNotExist:
             pass
         
