@@ -81,3 +81,30 @@ def send_email_task(self, to_email: str, subject: str, message: str):
         logger.error(f"Error sending email to {to_email}: {e}")
         # Retry up to 3 times with exponential backoff
         raise self.retry(exc=e, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3, time_limit=30)
+def send_otp_email_task(self, user_email: str, code: str, otp_id=None):
+    """Send OTP email asynchronously via Celery"""
+    try:
+        from .email_utils import send_email_with_logging
+        
+        result = send_email_with_logging(
+            to_email=user_email,
+            subject="Your AAfri Ride Verification Code",
+            message=f"Your verification code is: {code}\n\nThis code is valid for 5 minutes.\n\nIf you didn't request this code, please ignore this email.",
+            otp=otp_id,
+        )
+        
+        if result.get('success'):
+            logger.info(f"OTP email sent successfully to {user_email}")
+            return {'success': True, 'result': result.get('result')}
+        else:
+            logger.error(f"OTP email failed for {user_email}: {result.get('result')}")
+            # Retry on failure
+            raise Exception(f"Email send failed: {result.get('result')}")
+            
+    except Exception as exc:
+        logger.exception(f"Error sending OTP email to {user_email}")
+        # Retry with exponential backoff (60s, 120s, 180s)
+        raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))

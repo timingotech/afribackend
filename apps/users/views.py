@@ -71,31 +71,29 @@ class RegisterView(generics.CreateAPIView):
         
         try:
             if verification_method == 'email':
-                # Send OTP via email
+                # Send OTP via email ASYNCHRONOUSLY
                 code = str(random.randint(100000, 999999))
                 otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Send email synchronously with explicit error handling + logging
-                from django.db import connection
-                from .email_utils import send_email_with_logging
-
-                # Ensure database transaction is committed before sending email
+                # Queue email task asynchronously - don't wait for it
                 try:
-                    connection.commit()
-                except Exception:
-                    # If commit isn't available in the environment, continue
-                    pass
-
-                result = send_email_with_logging(
-                    to_email=user.email,
-                    subject="Your AAfri Ride Verification Code",
-                    message=f"Your code is: {code}\n\nValid for 10 minutes.",
-                    otp=otp,
-                )
-                if result.get('success'):
-                    print(f"[OK] OTP email queued/sent for {user.email} (result={result.get('result')})")
-                else:
-                    print(f"[ERROR] OTP email failed for {user.email}: {result.get('result')}")
+                    from .tasks import send_otp_email_task
+                    send_otp_email_task.delay(user.email, code, otp.id)
+                    print(f"[OK] OTP email queued for {user.email}")
+                except Exception as task_error:
+                    # If Celery fails, fall back to synchronous send
+                    print(f"[WARN] Celery task failed, falling back to sync email: {task_error}")
+                    from .email_utils import send_email_with_logging
+                    result = send_email_with_logging(
+                        to_email=user.email,
+                        subject="Your AAfri Ride Verification Code",
+                        message=f"Your code is: {code}\n\nValid for 5 minutes.",
+                        otp=otp,
+                    )
+                    if result.get('success'):
+                        print(f"[OK] OTP email sent (sync fallback) for {user.email}")
+                    else:
+                        print(f"[ERROR] OTP email failed: {result.get('result')}")
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
