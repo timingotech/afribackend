@@ -42,17 +42,28 @@ class RegisterView(generics.CreateAPIView):
             if verification_method == 'email':
                 # Send OTP via email
                 code = str(random.randint(100000, 999999))
-                OTP.objects.create(user=user, email=user.email, code=code, method='email')
+                otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Send email synchronously
+                # Send email synchronously with explicit error handling
                 from django.core.mail import send_mail
-                send_mail(
-                    subject="Your AAfri Ride Verification Code",
-                    message=f"Your code is: {code}\n\nValid for 10 minutes.",
-                    from_email='support@aafriride.com',
-                    recipient_list=[user.email],
-                    fail_silently=False,
-                )
+                from django.db import connection
+                
+                # Ensure database transaction is committed before sending email
+                connection.commit()
+                
+                try:
+                    result = send_mail(
+                        subject="Your AAfri Ride Verification Code",
+                        message=f"Your code is: {code}\n\nValid for 10 minutes.",
+                        from_email='support@aafriride.com',
+                        recipient_list=[user.email],
+                        fail_silently=False,
+                    )
+                    print(f"[OK] OTP email sent to {user.email}, result: {result}")
+                except Exception as email_error:
+                    print(f"[ERROR] Failed to send OTP email: {email_error}")
+                    import traceback
+                    traceback.print_exc()
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
@@ -61,10 +72,14 @@ class RegisterView(generics.CreateAPIView):
                     OTP.objects.create(user=user, phone=user.phone, code=code, method='phone')
                     
                     from .sms import send_otp_sms
-                    send_otp_sms(user.phone, code)
+                    try:
+                        send_otp_sms(user.phone, code)
+                        print(f"[OK] OTP SMS sent to {user.phone}")
+                    except Exception as sms_error:
+                        print(f"[ERROR] Failed to send OTP SMS: {sms_error}")
         except Exception as e:
             # Don't fail registration if OTP sending fails
-            print(f"[WARNING] Error sending OTP: {e}")
+            print(f"[ERROR] in perform_create: {e}")
             import traceback
             traceback.print_exc()
 
