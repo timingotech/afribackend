@@ -93,34 +93,43 @@ class RegisterView(generics.CreateAPIView):
             print(f"[WARNING] Failed to send welcome email: {e}")
 
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        verification_method = request.data.get('verification_method', 'phone')
-        
-        if response.status_code == 201:
-            if verification_method == 'email':
-                user_email = request.data.get('email')
-                response.data['detail'] = 'User registered successfully. Check your email for OTP verification code.'
-                response.data['verification_method'] = 'email'
-                response.data['contact'] = user_email
-                # Get the latest OTP for this email
-                try:
-                    latest_otp = OTP.objects.filter(email=user_email, method='email').latest('created_at')
-                    response.data['otp_code'] = latest_otp.code  # For testing purposes
-                except OTP.DoesNotExist:
-                    pass
-            else:
-                user_phone = request.data.get('phone')
-                response.data['detail'] = 'User registered successfully. Check your phone for OTP verification code.'
-                response.data['verification_method'] = 'phone'
-                response.data['contact'] = user_phone
-                # Get the latest OTP for this phone
-                try:
-                    latest_otp = OTP.objects.filter(phone=user_phone, method='phone').latest('created_at')
-                    response.data['otp_code'] = latest_otp.code  # For testing purposes
-                except OTP.DoesNotExist:
-                    pass
-        
-        return response
+        try:
+            response = super().create(request, *args, **kwargs)
+            verification_method = request.data.get('verification_method', 'phone')
+            
+            if response.status_code == 201:
+                if verification_method == 'email':
+                    user_email = request.data.get('email')
+                    response.data['detail'] = 'User registered successfully. Check your email for OTP verification code.'
+                    response.data['verification_method'] = 'email'
+                    response.data['contact'] = user_email
+                    # Get the latest OTP for this email
+                    try:
+                        latest_otp = OTP.objects.filter(email=user_email, method='email').latest('created_at')
+                        response.data['otp_code'] = latest_otp.code  # For testing purposes
+                    except OTP.DoesNotExist:
+                        pass
+                else:
+                    user_phone = request.data.get('phone')
+                    response.data['detail'] = 'User registered successfully. Check your phone for OTP verification code.'
+                    response.data['verification_method'] = 'phone'
+                    response.data['contact'] = user_phone
+                    # Get the latest OTP for this phone
+                    try:
+                        latest_otp = OTP.objects.filter(phone=user_phone, method='phone').latest('created_at')
+                        response.data['otp_code'] = latest_otp.code  # For testing purposes
+                    except OTP.DoesNotExist:
+                        pass
+            
+            return response
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in registration create: {e}")
+            return Response(
+                {'detail': f'Registration error: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
