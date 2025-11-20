@@ -71,29 +71,33 @@ class RegisterView(generics.CreateAPIView):
         
         try:
             if verification_method == 'email':
-                # Send OTP via email ASYNCHRONOUSLY
+                # Send OTP via email in background thread (non-blocking)
                 code = str(random.randint(100000, 999999))
                 otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Queue email task asynchronously - don't wait for it
-                try:
-                    from .tasks import send_otp_email_task
-                    send_otp_email_task.delay(user.email, code, otp.id)
-                    print(f"[OK] OTP email queued for {user.email}")
-                except Exception as task_error:
-                    # If Celery fails, fall back to synchronous send
-                    print(f"[WARN] Celery task failed, falling back to sync email: {task_error}")
-                    from .email_utils import send_email_with_logging
-                    result = send_email_with_logging(
-                        to_email=user.email,
-                        subject="Your AAfri Ride Verification Code",
-                        message=f"Your code is: {code}\n\nValid for 5 minutes.",
-                        otp=otp,
-                    )
-                    if result.get('success'):
-                        print(f"[OK] OTP email sent (sync fallback) for {user.email}")
-                    else:
-                        print(f"[ERROR] OTP email failed: {result.get('result')}")
+                # Send email in background thread to avoid blocking HTTP response
+                import threading
+                from .email_utils import send_email_with_logging
+                
+                def send_email_async():
+                    try:
+                        result = send_email_with_logging(
+                            to_email=user.email,
+                            subject="Your AAfri Ride Verification Code",
+                            message=f"Your code is: {code}\n\nValid for 5 minutes.",
+                            otp=otp,
+                        )
+                        if result.get('success'):
+                            print(f"[OK] OTP email sent to {user.email}")
+                        else:
+                            print(f"[ERROR] OTP email failed: {result.get('result')}")
+                    except Exception as e:
+                        print(f"[ERROR] Email thread exception: {e}")
+                
+                # Start background thread - returns immediately
+                thread = threading.Thread(target=send_email_async, daemon=True)
+                thread.start()
+                print(f"[OK] OTP email queued in background for {user.email}")
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
