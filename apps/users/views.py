@@ -181,25 +181,39 @@ def generate_otp(request):
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def verify_otp(request):
-    method = request.data.get('method', 'phone')  # 'email' or 'phone'
     code = request.data.get('code')
     
+    if not code:
+        return Response({'detail': 'code required'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Determine method based on what fields are provided
+    method = request.data.get('method')
+    email = request.data.get('email')
+    phone = request.data.get('phone')
+    
+    # If method not specified, infer from provided fields
+    if not method:
+        if email:
+            method = 'email'
+        elif phone:
+            method = 'phone'
+        else:
+            return Response({'detail': 'Either email or phone required'}, status=status.HTTP_400_BAD_REQUEST)
+    
     if method == 'email':
-        email = request.data.get('email')
-        if not email or not code:
-            return Response({'detail': 'email and code required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return Response({'detail': 'email required when using email verification method'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             otp = OTP.objects.filter(email=email, code=code, verified=False, method='email').latest('created_at')
         except OTP.DoesNotExist:
-            return Response({'detail': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Invalid OTP or already verified'}, status=status.HTTP_400_BAD_REQUEST)
     else:  # phone method
-        phone = request.data.get('phone')
-        if not phone or not code:
-            return Response({'detail': 'phone and code required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not phone:
+            return Response({'detail': 'phone required when using phone verification method'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             otp = OTP.objects.filter(phone=phone, code=code, verified=False, method='phone').latest('created_at')
         except OTP.DoesNotExist:
-            return Response({'detail': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'detail': 'Invalid OTP or already verified'}, status=status.HTTP_400_BAD_REQUEST)
     
     if otp.is_expired:
         return Response({'detail': 'OTP expired'}, status=status.HTTP_400_BAD_REQUEST)
