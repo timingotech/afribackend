@@ -7,19 +7,18 @@ print("\n" + "="*70)
 print("TESTING RAILWAY REGISTRATION WITH RAILWAY PAYLOAD")
 print("="*70 + "\n")
 
-test_email = "taonuga01@gmail.com"
-
 data = {
-    'email': test_email,
-    'password': 'TestPassword123!',
-    'password2': 'TestPassword123!',
-    'first_name': 'Test',
-    'last_name': 'User',
-    'role': 'customer',
-    'verification_method': 'email'
+  "email": "oyenugaridwan@gmail.com",
+  "phone": "+234902013174",
+  "password": "TestPass123!",
+  "password2": "TestPass123!",
+  "first_name": "Ridwan",
+  "last_name": "Oyenung",
+  "role": "customer",
+  "verification_method": "email"
 }
 
-print(f"Test Email: {test_email}")
+print(f"Test Email: {data['email']}")
 print("Making POST request to https://afribackend-production-e293.up.railway.app/api/users/register/\n")
 
 try:
@@ -37,7 +36,7 @@ try:
 
     if response.status_code == 201:
         print("SUCCESS: Railway registration completed using Railway payload!")
-        print(f"Check email inbox for {test_email} for OTP code.")
+        print(f"Check email inbox for {data['email']} for OTP code.")
     else:
         print("FAILED: Railway registration did not return 201")
 
