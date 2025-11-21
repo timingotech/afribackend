@@ -79,60 +79,8 @@ class RegisterView(generics.CreateAPIView):
                 try:
                     from .tasks import send_otp_email_task
                     # Queue email task - will be processed by Celery worker
-                    res = send_otp_email_task.delay(user.email, code, otp.id)
-                    # Persist Celery task ID on the OTP for tracking
-                    try:
-                        otp.celery_task_id = getattr(res, 'id', None)
-                        otp.save(update_fields=['celery_task_id'])
-                    except Exception:
-                        pass
-                    # res is an AsyncResult; if Celery worker is not running the task will remain queued
-                    try:
-                        task_id = getattr(res, 'id', None)
-                        print(f"[OK] OTP email queued via Celery for {user.email} (task_id={task_id})")
-                    except Exception:
-                        print(f"[OK] OTP email queued via Celery for {user.email} (task_id=unknown)")
-
-                    # In DEBUG/development, try waiting a short moment for Celery to process the task.
-                    # If it doesn't process within a second, fall back to direct send so the developer
-                    # sees the email immediately and can continue debugging.
-                    try:
-                        from django.conf import settings
-                        if getattr(settings, 'DEBUG', True):
-                            import time
-                            from celery.result import AsyncResult
-                            if task_id:
-                                ar = AsyncResult(task_id)
-                                time.sleep(0.75)
-                                # If still pending, fallback to direct send
-                                if ar.state in ['PENDING', 'RECEIVED']:
-                                    print(f"[WARN] Celery task {task_id} still pending in DEBUG; sending email directly for {user.email}")
-                                    from django.core.mail import send_mail
-                                    try:
-                                        # Generate a message-id header to help track delivery
-                                        from uuid import uuid4
-                                        msg_id = f'<{uuid4().hex}@aafriride.local>'
-                                        send_mail(
-                                            subject="Your AAfri Ride Verification Code",
-                                            message=f"Your code is: {code}\n\nValid for 5 minutes.",
-                                            from_email=settings.DEFAULT_FROM_EMAIL,
-                                            recipient_list=[user.email],
-                                            fail_silently=False,
-                                            headers={'Message-ID': msg_id, 'X-AAfriRide-Message-Id': msg_id},
-                                        )
-                                        otp.message_id = msg_id
-                                        otp.save(update_fields=['sent_at', 'send_result', 'message_id'])
-                                        otp.sent_at = timezone.now()
-                                        otp.send_result = 1
-                                        otp.save(update_fields=['sent_at', 'send_result'])
-                                        print(f"[OK] OTP email sent directly to {user.email} (fallback)")
-                                    except Exception as email_error:
-                                        print(f"[ERROR] Direct email failed during fallback: {email_error}")
-                                        otp.send_error = str(email_error)
-                                        otp.save(update_fields=['send_error'])
-                    except Exception:
-                        # Any error with AsyncResult/fallback should not break registration
-                        pass
+                    send_otp_email_task.delay(user.email, code, otp.id)
+                    print(f"[OK] OTP email queued via Celery for {user.email}")
                 except Exception as celery_error:
                     # Celery not available, send directly (will block but reliable)
                     print(f"[WARN] Celery unavailable ({celery_error}), sending email directly")

@@ -47,8 +47,7 @@ class UserSerializer(serializers.ModelSerializer):
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
     password2 = serializers.CharField(write_only=True, required=False)
-    # Make verification_method optional: default to 'phone' or infer from provided fields
-    verification_method = serializers.ChoiceField(choices=['email', 'phone'], required=False, default='phone', write_only=True)
+    verification_method = serializers.ChoiceField(choices=['email', 'phone'], required=True, write_only=True)
 
     class Meta:
         model = User
@@ -61,14 +60,6 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Passwords do not match')
         
         verification_method = data.get('verification_method')
-        # If verification_method was not provided, infer it from fields: prefer email if present
-        if not verification_method:
-            if data.get('email'):
-                verification_method = 'email'
-                data['verification_method'] = 'email'
-            elif data.get('phone'):
-                verification_method = 'phone'
-                data['verification_method'] = 'phone'
         if verification_method == 'email' and not data.get('email'):
             raise serializers.ValidationError('Email is required when choosing email verification')
         if verification_method == 'phone' and not data.get('phone'):

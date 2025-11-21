@@ -225,23 +225,6 @@ print(f"Sent: {result}")
 **Fallback:**
 If Celery not available, SMS still sends synchronously. Check backend logs for SMS status.
 
-### Email Not Sending During Registration (Common for Local Dev)
-
-If you see `OTP email queued via Celery` in server logs but no email arrives:
-
-- Confirm a Celery worker is running in a separate terminal: `celery -A backend_project worker -l info`.
-- If you don't want to run a worker for development, set Celery to run eagerly so tasks execute synchronously and emails are sent right away:
-
-```bash
-# In your .env or terminal before running Django server
-export CELERY_TASK_ALWAYS_EAGER=True
-export CELERY_TASK_EAGER_PROPAGATES_EXCEPTIONS=True
-```
-
-This will make Celery tasks execute on the main process (same as direct send) and is safe for development / debugging.
-
-If you still don't receive email, check `logs/email_send.log` and the OTP database record (`send_result` & `send_error`) for details.
-
 ## Future Enhancements
 
 - [ ] SMS delivery tracking

@@ -152,9 +152,6 @@ CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-# Run tasks eagerly in dev when environment var is set (useful for local testing without a worker)
-CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_TASK_ALWAYS_EAGER', 'False') == 'True'
-CELERY_TASK_EAGER_PROPAGATES_EXCEPTIONS = os.getenv('CELERY_TASK_EAGER_PROPAGATES_EXCEPTIONS', 'True') == 'True'
 
 # Share token TTL (seconds) for public tracking links. Default 6 hours.
 SHARE_TOKEN_TTL_SECONDS = int(os.getenv('SHARE_TOKEN_TTL_SECONDS', str(6 * 3600)))

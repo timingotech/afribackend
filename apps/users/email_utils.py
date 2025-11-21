@@ -11,7 +11,7 @@ def _ensure_log_dir():
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
 
-def send_email_with_logging(to_email: str, subject: str, message: str, from_email: str = 'support@aafriride.com', otp=None, headers=None):
+def send_email_with_logging(to_email: str, subject: str, message: str, from_email: str = 'support@aafriride.com', otp=None):
     """Send an email using Django email backend and log the attempt to a file.
 
     If `otp` is provided (either an `OTP` instance or an OTP id), this function
@@ -37,22 +37,13 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
         try:
             connection = get_connection()
             email = EmailMessage(subject=subject, body=message, from_email=from_email, to=[to_email], connection=connection)
-            # Add extra headers if provided
-            if headers:
-                # Add any headers and log them for troubleshooting
-                email.extra_headers = {**email.extra_headers, **headers} if getattr(email, 'extra_headers', None) else headers
             result = email.send(fail_silently=False)
-            # Capture message id header if present
-            try:
-                sent_message_id = email.extra_headers.get('X-AAfriRide-Message-Id') if getattr(email, 'extra_headers', None) else None
-            except Exception:
-                sent_message_id = None
             log_line += f"RESULT={result} (attempt {attempt + 1})\n"
             with open(LOG_PATH, 'a', encoding='utf-8') as f:
                 f.write(log_line)
             logger.info(f"Email sent to {to_email} (result={result})")
 
-            # Persist send result and message id to DB if otp provided
+            # Persist send result to DB if otp provided
             if otp is not None:
                 try:
                     from django.utils import timezone as _tz
@@ -61,8 +52,6 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
                         otp.sent_at = _tz.now()
                         otp.send_result = int(result) if isinstance(result, int) else 1
                         otp.send_error = ''
-                        if sent_message_id:
-                            otp.message_id = sent_message_id
                         otp.save(update_fields=['sent_at', 'send_result', 'send_error'])
                     else:
                         from .models import OTP as _OTP
@@ -75,7 +64,7 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
                 except Exception:
                     logger.exception('Failed to persist OTP send result to DB')
 
-            return {"success": True, "result": result, 'message_id': sent_message_id}
+            return {"success": True, "result": result}
             
         except Exception as e:
             last_error = e
