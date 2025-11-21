@@ -179,8 +179,11 @@ CHANNEL_LAYERS = {
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 
 # On Linux (Railway), use standard SMTP backend to avoid custom SSL issues
+# Also set a timeout to prevent Gunicorn worker kills
+EMAIL_TIMEOUT = 20
+
 import platform
-if platform.system() != 'Windows' and 'ZohoEmailBackend' in EMAIL_BACKEND:
+if (platform.system() != 'Windows' and 'ZohoEmailBackend' in EMAIL_BACKEND) or os.getenv('RAILWAY_ENVIRONMENT_NAME'):
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')

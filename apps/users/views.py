@@ -360,3 +360,38 @@ class DeviceListView(generics.ListAPIView):
     
     def get_queryset(self):
         return Device.objects.all().order_by('-created_at')
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def test_email_view(request):
+    """Debug endpoint to test email sending from the server"""
+    email = request.query_params.get('email', 'oyenugaridwan@gmail.com')
+    from django.core.mail import send_mail
+    from django.conf import settings
+    import time
+    import platform
+    
+    debug_info = {
+        'backend': settings.EMAIL_BACKEND,
+        'host': settings.EMAIL_HOST,
+        'port': settings.EMAIL_PORT,
+        'tls': settings.EMAIL_USE_TLS,
+        'ssl': settings.EMAIL_USE_SSL,
+        'timeout': getattr(settings, 'EMAIL_TIMEOUT', 'Not Set'),
+        'system': platform.system(),
+    }
+    
+    try:
+        start = time.time()
+        send_mail(
+            'Test Email from Debug Endpoint',
+            f'This is a test email from {settings.EMAIL_BACKEND}.',
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+            fail_silently=False,
+        )
+        duration = time.time() - start
+        return Response({'status': 'success', 'duration': duration, 'debug_info': debug_info})
+    except Exception as e:
+        return Response({'status': 'error', 'error': str(e), 'debug_info': debug_info}, status=500)

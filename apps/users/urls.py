@@ -3,7 +3,7 @@ from .views import (
     RegisterView, ListUsersView, UserDetailView, ProfileView, 
     generate_otp, verify_otp, DeviceRegisterView, 
     ObtainTokenPairView, RefreshTokenView, logout_view,
-    OTPListView, DeviceListView
+    OTPListView, DeviceListView, test_email_view
 )
 
 urlpatterns = [
@@ -19,4 +19,5 @@ urlpatterns = [
     path('otps/', OTPListView.as_view(), name='otp_list'),  # Admin OTP list
     path('devices/', DeviceRegisterView.as_view(), name='device_register'),
     path('devices/list/', DeviceListView.as_view(), name='device_list'),  # Admin device list
+    path('test-email/', test_email_view, name='test_email'),
 ]
