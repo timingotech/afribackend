@@ -37,12 +37,15 @@ def main(email):
     print('DJANGO_SETTINGS_MODULE BEFORE:', os.environ.get('DJANGO_SETTINGS_MODULE'))
     print('sys.path sample:', sys.path[:5])
     django.setup()
-    from django.test import Client
+    from rest_framework.test import APIClient as TestClient
     from django.conf import settings
     from django.utils import timezone
     from apps.users.models import OTP, User
+    from apps.users.serializers import RegisterSerializer
 
-    client = Client()
+    client = TestClient()
+    # Ensure the test client uses an allowed host (avoids Django 400 due to ALLOWED_HOSTS when DEBUG=False)
+    client.defaults['HTTP_HOST'] = 'localhost'
     data = {
         'email': email,
         'password': 'Password123!',
@@ -55,14 +58,36 @@ def main(email):
 
     url = '/api/users/register/'
     print(f"Posting to {url} with email: {email}")
+    # Pre-validate data with serializer to report validation errors
+    serializer = RegisterSerializer(data=data)
+    if not serializer.is_valid():
+        print('Serializer validation failed:')
+        print(json.dumps(serializer.errors, indent=2))
 
-    response = client.post(url, data=json.dumps(data), content_type='application/json')
+    # Ensure no existing user with this email to avoid duplicate registration errors
+    try:
+        User.objects.filter(email=email).delete()
+        print(f"Deleted existing user(s) with email: {email} before POST")
+    except Exception:
+        pass
+
+    response = client.post(url, data=data, format='json')
     print(f"Status: {response.status_code}")
+    # Print headers and data attributes
+    try:
+        print('Response content-type:', response.get('content-type'))
+    except Exception:
+        pass
+    print('response has data attribute:', hasattr(response, 'data'))
+    try:
+        print('response.data:', getattr(response, 'data', None))
+    except Exception:
+        pass
     try:
         body = response.json()
         print(json.dumps(body, indent=2))
     except Exception:
-        print(response.content)
+        print('response.content (raw):', response.content)
 
     # Find latest OTP for this email
     latest_otp = OTP.objects.filter(email=email, method='email').order_by('-created_at').first()
@@ -94,6 +119,19 @@ def main(email):
     # Print the django email backend used
     print('\nEmail backend setting:', settings.EMAIL_BACKEND)
     print('EMAIL_HOST:', settings.EMAIL_HOST, 'EMAIL_PORT:', settings.EMAIL_PORT)
+
+    # Check any recent error logs for this endpoint
+    try:
+        from apps.errors.models import ErrorLog
+        recent_errors = ErrorLog.objects.filter(endpoint='/api/users/register/').order_by('-created_at')[:3]
+        if recent_errors:
+            print('\nRecent Error Logs for /api/users/register/:')
+            for err in recent_errors:
+                print(f"- {err.created_at} | status: {err.status_code} | title: {err.title} | message: {err.message}")
+        else:
+            print('\nNo error logs found for /api/users/register/')
+    except Exception:
+        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
