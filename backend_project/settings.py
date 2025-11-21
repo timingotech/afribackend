@@ -156,7 +156,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # In development, run tasks synchronously to avoid needing a separate worker process
 # Also enable this if CELERY_TASK_ALWAYS_EAGER_FORCE env var is set (useful for production debugging)
 # Force eager execution on Railway for now to ensure emails are sent synchronously
-if DEBUG or os.getenv('CELERY_TASK_ALWAYS_EAGER_FORCE', 'False') == 'True':
+if os.getenv('CELERY_TASK_ALWAYS_EAGER_FORCE', 'False') == 'True':
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
 
