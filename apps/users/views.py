@@ -71,55 +71,33 @@ class RegisterView(generics.CreateAPIView):
         
         try:
             if verification_method == 'email':
-                # Send OTP via email asynchronously using Celery
+                # Send OTP via email
                 code = str(random.randint(100000, 999999))
                 otp = OTP.objects.create(user=user, email=user.email, code=code, method='email')
                 
-                # Try Celery first, fall back to direct send if Celery unavailable
+                # Send using EmailJS (API based, reliable)
+                print(f"[INFO] Sending OTP email via EmailJS to {user.email}")
+                from .email_utils import send_email_via_emailjs
+                
+                # Run in background if possible, but for now call directly to ensure it works
                 try:
-                    from .tasks import send_otp_email_task
-                    # Queue email task - will be processed by Celery worker
-                    # Use apply_async with retry policy to ensure it's picked up
-                    # Wrap in try/except to catch SystemExit or other critical errors if eager execution fails
-                    try:
-                        send_otp_email_task.apply_async(
-                            args=[user.email, code, otp.id],
-                            retry=True,
-                            retry_policy={
-                                'max_retries': 3,
-                                'interval_start': 0,
-                                'interval_step': 0.2,
-                                'interval_max': 0.2,
-                            }
-                        )
-                        print(f"[OK] OTP email queued via Celery for {user.email}")
-                    except (Exception, SystemExit) as task_error:
-                        # If task execution fails (e.g. timeout in eager mode), fall back to direct send
-                        # Note: SystemExit is raised by Gunicorn on timeout, but catching it might not save the request
-                        # if the worker is being killed. However, it's worth a try or at least logging it.
-                        print(f"[WARN] Celery task execution failed ({task_error}), falling back to direct send")
-                        raise task_error  # Re-raise to trigger the outer except block
-                except (Exception, SystemExit) as celery_error:
-                    # Celery not available, send directly (will block but reliable)
-                    print(f"[WARN] Celery unavailable ({celery_error}), sending email directly")
-                    from django.core.mail import send_mail
-                    from django.conf import settings
-                    try:
-                        send_mail(
-                            subject="Your AAfri Ride Verification Code",
-                            message=f"Your code is: {code}\n\nValid for 5 minutes.",
-                            from_email=settings.DEFAULT_FROM_EMAIL,
-                            recipient_list=[user.email],
-                            fail_silently=False,
-                        )
-                        otp.sent_at = timezone.now()
-                        otp.send_result = 1
-                        otp.save(update_fields=['sent_at', 'send_result'])
-                        print(f"[OK] OTP email sent directly to {user.email}")
-                    except Exception as email_error:
-                        print(f"[ERROR] Direct email failed: {email_error}")
-                        otp.send_error = str(email_error)
+                    result = send_email_via_emailjs(
+                        to_email=user.email,
+                        subject="Your AAfri Ride Verification Code",
+                        message=f"Your code is: {code}\n\nValid for 5 minutes.",
+                        otp=otp,
+                        code=code
+                    )
+                    if result['success']:
+                        print(f"[OK] OTP email sent via EmailJS to {user.email}")
+                    else:
+                        print(f"[ERROR] EmailJS failed: {result['result']}")
+                        otp.send_error = str(result['result'])
                         otp.save(update_fields=['send_error'])
+                except Exception as email_error:
+                    print(f"[ERROR] EmailJS exception: {email_error}")
+                    otp.send_error = str(email_error)
+                    otp.save(update_fields=['send_error'])
             
             elif verification_method == 'phone':
                 # Send OTP via SMS
@@ -198,13 +176,18 @@ def generate_otp(request):
         code = str(random.randint(100000, 999999))
         otp = OTP.objects.create(email=email, code=code, method='email')
         
-        # Queue async email task (non-blocking)
-        from .tasks import send_email_task
+        # Send using EmailJS
+        from .email_utils import send_email_via_emailjs
         try:
-            send_email_task.delay(email, "Your AAfri Ride Verification Code", 
-                                 f"Your code is: {code}\n\nValid for 10 minutes.")
+            send_email_via_emailjs(
+                to_email=email,
+                subject="Your AAfri Ride Verification Code",
+                message=f"Your code is: {code}\n\nValid for 10 minutes.",
+                otp=otp,
+                code=code
+            )
         except Exception as e:
-            print(f"Warning: Could not queue email task: {e}")
+            print(f"Warning: Could not send email via EmailJS: {e}")
         
         return Response({'email': email, 'code': code, 'method': 'email', 'detail': 'OTP sent to email'})
     
