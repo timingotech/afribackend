@@ -22,8 +22,8 @@ class ZohoEmailBackend(DjangoEmailBackend):
             return False
 
         # Try with shorter timeout and retry up to 2 times
-        max_retries = 2
-        timeout = 8  # 8 second timeout per attempt
+        max_retries = 3
+        timeout = 20  # Increased timeout for production latency
         
         for attempt in range(max_retries):
             try:

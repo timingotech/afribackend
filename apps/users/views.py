@@ -79,7 +79,17 @@ class RegisterView(generics.CreateAPIView):
                 try:
                     from .tasks import send_otp_email_task
                     # Queue email task - will be processed by Celery worker
-                    send_otp_email_task.delay(user.email, code, otp.id)
+                    # Use apply_async with retry policy to ensure it's picked up
+                    send_otp_email_task.apply_async(
+                        args=[user.email, code, otp.id],
+                        retry=True,
+                        retry_policy={
+                            'max_retries': 3,
+                            'interval_start': 0,
+                            'interval_step': 0.2,
+                            'interval_max': 0.2,
+                        }
+                    )
                     print(f"[OK] OTP email queued via Celery for {user.email}")
                 except Exception as celery_error:
                     # Celery not available, send directly (will block but reliable)

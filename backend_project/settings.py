@@ -154,7 +154,8 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
 # In development, run tasks synchronously to avoid needing a separate worker process
-if DEBUG:
+# Also enable this if CELERY_TASK_ALWAYS_EAGER_FORCE env var is set (useful for production debugging)
+if DEBUG or os.getenv('CELERY_TASK_ALWAYS_EAGER_FORCE', 'False') == 'True':
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
 
