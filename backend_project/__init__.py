@@ -1,2 +1,5 @@
-# Empty init file - Celery support removed in favor of synchronous email handling
+from .celery import app as celery_app
+
+__all__ = ('celery_app',)
+
 

@@ -153,6 +153,11 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 
+# In development, run tasks synchronously to avoid needing a separate worker process
+if DEBUG:
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+
 # Share token TTL (seconds) for public tracking links. Default 6 hours.
 SHARE_TOKEN_TTL_SECONDS = int(os.getenv('SHARE_TOKEN_TTL_SECONDS', str(6 * 3600)))
 # Redis key prefix for share tokens
