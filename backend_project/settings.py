@@ -178,21 +178,21 @@ CHANNEL_LAYERS = {
 # Email Configuration
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
 
-# On Linux (Railway), use standard SMTP backend
+# On Linux (Railway), use custom backend to bypass SSL verification issues
 # Also set a timeout to prevent Gunicorn worker kills
-EMAIL_TIMEOUT = 30  # Increased to 30s to allow for slower connections
+EMAIL_TIMEOUT = 10  # Reduced to 10s to allow for retries within Gunicorn's 30s limit
 
 import platform
 if (platform.system() != 'Windows' and 'ZohoEmailBackend' in EMAIL_BACKEND) or os.getenv('RAILWAY_ENVIRONMENT_NAME'):
-    # Use standard backend
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    # Use our custom backend that ignores SSL cert errors
+    EMAIL_BACKEND = 'apps.users.email_backend.UnverifiedEmailBackend'
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 25))
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'
 
-# Force TLS on port 587 for Railway/Linux if using Zoho
+# Force TLS on port 587 for Railway/Linux if using Zoho (alternative fix for timeouts)
 if os.getenv('RAILWAY_ENVIRONMENT_NAME') and 'zoho' in EMAIL_HOST:
     EMAIL_PORT = 587
     EMAIL_USE_SSL = False
