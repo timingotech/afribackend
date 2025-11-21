@@ -80,18 +80,26 @@ class RegisterView(generics.CreateAPIView):
                     from .tasks import send_otp_email_task
                     # Queue email task - will be processed by Celery worker
                     # Use apply_async with retry policy to ensure it's picked up
-                    send_otp_email_task.apply_async(
-                        args=[user.email, code, otp.id],
-                        retry=True,
-                        retry_policy={
-                            'max_retries': 3,
-                            'interval_start': 0,
-                            'interval_step': 0.2,
-                            'interval_max': 0.2,
-                        }
-                    )
-                    print(f"[OK] OTP email queued via Celery for {user.email}")
-                except Exception as celery_error:
+                    # Wrap in try/except to catch SystemExit or other critical errors if eager execution fails
+                    try:
+                        send_otp_email_task.apply_async(
+                            args=[user.email, code, otp.id],
+                            retry=True,
+                            retry_policy={
+                                'max_retries': 3,
+                                'interval_start': 0,
+                                'interval_step': 0.2,
+                                'interval_max': 0.2,
+                            }
+                        )
+                        print(f"[OK] OTP email queued via Celery for {user.email}")
+                    except (Exception, SystemExit) as task_error:
+                        # If task execution fails (e.g. timeout in eager mode), fall back to direct send
+                        # Note: SystemExit is raised by Gunicorn on timeout, but catching it might not save the request
+                        # if the worker is being killed. However, it's worth a try or at least logging it.
+                        print(f"[WARN] Celery task execution failed ({task_error}), falling back to direct send")
+                        raise task_error  # Re-raise to trigger the outer except block
+                except (Exception, SystemExit) as celery_error:
                     # Celery not available, send directly (will block but reliable)
                     print(f"[WARN] Celery unavailable ({celery_error}), sending email directly")
                     from django.core.mail import send_mail
