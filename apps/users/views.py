@@ -384,13 +384,20 @@ def test_email_view(request):
     
     try:
         start = time.time()
-        send_mail(
+        # Use a simpler send_mail call for debugging
+        from django.core.mail import get_connection
+        from django.core.mail.message import EmailMessage
+        
+        connection = get_connection()
+        email_msg = EmailMessage(
             'Test Email from Debug Endpoint',
             f'This is a test email from {settings.EMAIL_BACKEND}.',
             settings.DEFAULT_FROM_EMAIL,
             [email],
-            fail_silently=False,
+            connection=connection,
         )
+        email_msg.send(fail_silently=False)
+        
         duration = time.time() - start
         return Response({'status': 'success', 'duration': duration, 'debug_info': debug_info})
     except Exception as e:

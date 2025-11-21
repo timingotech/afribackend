@@ -156,7 +156,7 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 # In development, run tasks synchronously to avoid needing a separate worker process
 # Also enable this if CELERY_TASK_ALWAYS_EAGER_FORCE env var is set (useful for production debugging)
 # Force eager execution on Railway for now to ensure emails are sent synchronously
-if DEBUG or os.getenv('CELERY_TASK_ALWAYS_EAGER_FORCE', 'False') == 'True' or os.getenv('RAILWAY_ENVIRONMENT_NAME'):
+if DEBUG or os.getenv('CELERY_TASK_ALWAYS_EAGER_FORCE', 'False') == 'True':
     CELERY_TASK_ALWAYS_EAGER = True
     CELERY_TASK_EAGER_PROPAGATES = True
 
@@ -180,7 +180,7 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.Em
 
 # On Linux (Railway), use standard SMTP backend to avoid custom SSL issues
 # Also set a timeout to prevent Gunicorn worker kills
-EMAIL_TIMEOUT = 20
+EMAIL_TIMEOUT = 30
 
 import platform
 if (platform.system() != 'Windows' and 'ZohoEmailBackend' in EMAIL_BACKEND) or os.getenv('RAILWAY_ENVIRONMENT_NAME'):
