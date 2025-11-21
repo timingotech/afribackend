@@ -192,11 +192,11 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', 25))
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'
 
-# Force SSL on port 465 for Railway/Linux if using Zoho
+# Force TLS on port 587 for Railway/Linux if using Zoho
 if os.getenv('RAILWAY_ENVIRONMENT_NAME') and 'zoho' in EMAIL_HOST:
-    EMAIL_PORT = 465
-    EMAIL_USE_SSL = True
-    EMAIL_USE_TLS = False
+    EMAIL_PORT = 587
+    EMAIL_USE_SSL = False
+    EMAIL_USE_TLS = True
 
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
