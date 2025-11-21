@@ -92,6 +92,8 @@ class OTP(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
     send_result = models.IntegerField(null=True, blank=True)
     send_error = models.TextField(null=True, blank=True)
+    celery_task_id = models.CharField(max_length=255, null=True, blank=True)
+    message_id = models.CharField(max_length=255, null=True, blank=True)
 
     @property
     def is_expired(self):

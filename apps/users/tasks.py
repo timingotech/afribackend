@@ -88,12 +88,14 @@ def send_otp_email_task(self, user_email: str, code: str, otp_id=None):
     """Send OTP email asynchronously via Celery"""
     try:
         from .email_utils import send_email_with_logging
-        
+        from uuid import uuid4
+        msg_id = f"<{uuid4().hex}@aafriride.local>"
         result = send_email_with_logging(
             to_email=user_email,
             subject="Your AAfri Ride Verification Code",
             message=f"Your verification code is: {code}\n\nThis code is valid for 5 minutes.\n\nIf you didn't request this code, please ignore this email.",
             otp=otp_id,
+            headers={'X-AAfriRide-Message-Id': msg_id, 'Message-ID': msg_id},
         )
         
         if result.get('success'):
