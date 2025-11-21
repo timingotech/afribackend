@@ -180,7 +180,7 @@ EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.Em
 
 # On Linux (Railway), use standard SMTP backend to avoid custom SSL issues
 # Also set a timeout to prevent Gunicorn worker kills
-EMAIL_TIMEOUT = 30
+EMAIL_TIMEOUT = 10  # Reduced to 10s to allow for retries within Gunicorn's 30s limit
 
 import platform
 if (platform.system() != 'Windows' and 'ZohoEmailBackend' in EMAIL_BACKEND) or os.getenv('RAILWAY_ENVIRONMENT_NAME'):

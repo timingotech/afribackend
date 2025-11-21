@@ -31,50 +31,45 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
 
     log_line = f"{timestamp} | TO={to_email} | SUBJECT={subject} | "
     
-    # Try sending with retries (2 attempts)
+    # Try sending (no retries to prevent Gunicorn timeout)
     last_error = None
-    for attempt in range(2):
-        try:
-            connection = get_connection()
-            email = EmailMessage(subject=subject, body=message, from_email=from_email, to=[to_email], connection=connection)
-            result = email.send(fail_silently=False)
-            log_line += f"RESULT={result} (attempt {attempt + 1})\n"
-            with open(LOG_PATH, 'a', encoding='utf-8') as f:
-                f.write(log_line)
-            logger.info(f"Email sent to {to_email} (result={result})")
+    try:
+        connection = get_connection()
+        email = EmailMessage(subject=subject, body=message, from_email=from_email, to=[to_email], connection=connection)
+        result = email.send(fail_silently=False)
+        log_line += f"RESULT={result}\n"
+        with open(LOG_PATH, 'a', encoding='utf-8') as f:
+            f.write(log_line)
+        logger.info(f"Email sent to {to_email} (result={result})")
 
-            # Persist send result to DB if otp provided
-            if otp is not None:
-                try:
-                    from django.utils import timezone as _tz
-                    # Accept either OTP instance or numeric id
-                    if hasattr(otp, 'save') and hasattr(otp, 'pk'):
-                        otp.sent_at = _tz.now()
-                        otp.send_result = int(result) if isinstance(result, int) else 1
-                        otp.send_error = ''
-                        otp.save(update_fields=['sent_at', 'send_result', 'send_error'])
-                    else:
-                        from .models import OTP as _OTP
-                        o = _OTP.objects.filter(pk=otp).first()
-                        if o:
-                            o.sent_at = _tz.now()
-                            o.send_result = int(result) if isinstance(result, int) else 1
-                            o.send_error = ''
-                            o.save(update_fields=['sent_at', 'send_result', 'send_error'])
-                except Exception:
-                    logger.exception('Failed to persist OTP send result to DB')
+        # Persist send result to DB if otp provided
+        if otp is not None:
+            try:
+                from django.utils import timezone as _tz
+                # Accept either OTP instance or numeric id
+                if hasattr(otp, 'save') and hasattr(otp, 'pk'):
+                    otp.sent_at = _tz.now()
+                    otp.send_result = int(result) if isinstance(result, int) else 1
+                    otp.send_error = ''
+                    otp.save(update_fields=['sent_at', 'send_result', 'send_error'])
+                else:
+                    from .models import OTP as _OTP
+                    o = _OTP.objects.filter(pk=otp).first()
+                    if o:
+                        o.sent_at = _tz.now()
+                        o.send_result = int(result) if isinstance(result, int) else 1
+                        o.send_error = ''
+                        o.save(update_fields=['sent_at', 'send_result', 'send_error'])
+            except Exception:
+                logger.exception('Failed to persist OTP send result to DB')
 
-            return {"success": True, "result": result}
-            
-        except Exception as e:
-            last_error = e
-            logger.warning(f"Email attempt {attempt + 1} failed for {to_email}: {e}")
-            if attempt < 1:  # Will retry
-                import time
-                time.sleep(2)  # Wait 2 seconds before retry
-            continue
+        return {"success": True, "result": result}
+        
+    except Exception as e:
+        last_error = e
+        logger.warning(f"Email attempt failed for {to_email}: {e}")
     
-    # All attempts failed
+    # Attempt failed
     if last_error:
         log_line += f"ERROR={last_error} (all attempts failed)\n"
         with open(LOG_PATH, 'a', encoding='utf-8') as f:
