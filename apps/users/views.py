@@ -185,6 +185,7 @@ def generate_otp(request):
             )
         except Exception as e:
             print(f"Warning: Could not send email: {e}")
+            return Response({'detail': f'Failed to send email: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         return Response({'email': email, 'code': code, 'method': 'email', 'detail': 'OTP sent to email'})
     
