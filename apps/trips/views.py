@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.shortcuts import get_object_or_404
 from .models import Trip
-from .serializers import TripSerializer, TripActionSerializer, DriverLocationSerializer
+from .serializers import TripSerializer, TripActionSerializer, DriverLocationSerializer, DriverLocationModelSerializer
 
 
 class TripCreateView(generics.CreateAPIView):
@@ -315,8 +315,8 @@ from .models import DriverLocation
 
 class DriverLocationListView(generics.ListAPIView):
     """List all driver locations (admin only)"""
-    serializer_class = DriverLocationSerializer
+    serializer_class = DriverLocationModelSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
-        return DriverLocation.objects.all().order_by('-updated_at')
+        return DriverLocation.objects.select_related('driver').all().order_by('-updated_at')

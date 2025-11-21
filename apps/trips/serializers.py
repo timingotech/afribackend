@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Trip
+from .models import Trip, DriverLocation
 
 
 class TripSerializer(serializers.ModelSerializer):
@@ -22,3 +22,11 @@ class DriverLocationSerializer(serializers.Serializer):
     heading = serializers.FloatField(required=False)
     accuracy = serializers.FloatField(required=False)
     timestamp = serializers.DateTimeField(required=False)
+
+
+class DriverLocationModelSerializer(serializers.ModelSerializer):
+    driver = serializers.PrimaryKeyRelatedField(read_only=True)
+
+    class Meta:
+        model = DriverLocation
+        fields = ['id', 'driver', 'lat', 'lng', 'speed', 'heading', 'accuracy', 'updated_at']
