@@ -157,10 +157,8 @@ def send_email_via_emailjs(to_email, subject, message, otp=None, code=None):
 
     url = "https://api.emailjs.com/api/v1.0/email/send"
     
-    # Calculate expiration time (10 minutes from now)
     from django.utils import timezone
     import datetime
-    expiration_time = (timezone.now() + datetime.timedelta(minutes=10)).strftime("%H:%M")
     
     # Prepare the data payload
     payload = {
@@ -173,7 +171,7 @@ def send_email_via_emailjs(to_email, subject, message, otp=None, code=None):
             "subject": subject,
             "message": message,
             "passcode": code if code else (message.split("is: ")[1].split("\n")[0] if "is: " in message else ""),
-            "time": expiration_time
+            "time": "5 Minutes"
         }
     }
 
