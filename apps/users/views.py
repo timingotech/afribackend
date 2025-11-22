@@ -415,7 +415,18 @@ class AdminDriverViewSet(viewsets.ViewSet):
 
     def create(self, request):
         # Expect user id or create user inline
-        data = request.data.copy()
+        # Build a plain dict of scalar fields and attach uploaded files separately
+        data = {}
+        for k in request.data:
+            try:
+                data[k] = request.data.get(k)
+            except Exception:
+                # skip problematic keys
+                pass
+        # attach files from request.FILES (if any)
+        for fk in request.FILES:
+            data[fk] = request.FILES.get(fk)
+
         user_id = data.get('user') or data.get('user_id')
         if not user_id:
             # create a user object for the driver (admin created)
