@@ -62,12 +62,39 @@ class CustomerProfile(models.Model):
 
 class RiderProfile(models.Model):
     user = models.OneToOneField('users.User', on_delete=models.CASCADE, related_name='rider_profile')
+    # Personal details
+    date_of_birth = models.DateField(null=True, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=128, blank=True)
+    state = models.CharField(max_length=128, blank=True)
+    zip_code = models.CharField(max_length=20, blank=True)
+
+    # License details
+    license_number = models.CharField(max_length=128, blank=True)
+    license_expiry = models.DateField(null=True, blank=True)
+    license_issued_state = models.CharField(max_length=64, blank=True)
+    license_front = models.FileField(upload_to='licenses/front/', null=True, blank=True)
+    license_back = models.FileField(upload_to='licenses/back/', null=True, blank=True)
+
+    # Vehicle details
     vehicle_make = models.CharField(max_length=100, blank=True)
     vehicle_model = models.CharField(max_length=100, blank=True)
+    vehicle_year = models.CharField(max_length=10, blank=True)
+    vehicle_color = models.CharField(max_length=50, blank=True)
     vehicle_plate = models.CharField(max_length=20, blank=True)
-    license_document = models.FileField(upload_to='licenses/', null=True, blank=True)
-    id_document = models.FileField(upload_to='ids/', null=True, blank=True)
+    vehicle_type = models.CharField(max_length=64, blank=True)
+
+    # Photos
+    profile_photo = models.ImageField(upload_to='profiles/', null=True, blank=True)
+    vehicle_front = models.ImageField(upload_to='vehicles/front/', null=True, blank=True)
+    vehicle_back = models.ImageField(upload_to='vehicles/back/', null=True, blank=True)
+    vehicle_side = models.ImageField(upload_to='vehicles/side/', null=True, blank=True)
+    vehicle_interior = models.ImageField(upload_to='vehicles/interior/', null=True, blank=True)
+
+    # Approval and availability
+    is_approved = models.BooleanField(default=False)
     is_available = models.BooleanField(default=False)
+    submitted_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     def __str__(self):
         return f'RiderProfile({self.user})'

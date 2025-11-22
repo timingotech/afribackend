@@ -5,6 +5,11 @@ from .views import (
     ObtainTokenPairView, RefreshTokenView, logout_view,
     OTPListView, DeviceListView, test_email_view
 )
+from .views import AdminDriverViewSet
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+router.register(r'admin/drivers', AdminDriverViewSet, basename='admin-drivers')
 
 urlpatterns = [
     path('', ListUsersView.as_view(), name='list_users'),
@@ -20,4 +25,12 @@ urlpatterns = [
     path('devices/', DeviceRegisterView.as_view(), name='device_register'),
     path('devices/list/', DeviceListView.as_view(), name='device_list'),  # Admin device list
     path('test-email/', test_email_view, name='test_email'),
+]
+
+urlpatterns += router.urls
+
+ # add explicit approve route for convenience
+from django.urls import re_path
+urlpatterns += [
+    re_path(r'^admin/drivers/(?P<pk>\d+)/approve/$', AdminDriverViewSet.approve, name='admin_driver_approve'),
 ]
