@@ -443,11 +443,11 @@ class AdminDriverViewSet(viewsets.ViewSet):
         else:
             user = get_object_or_404(User, pk=int(user_id))
 
-        # attach user id and create RiderProfile
-        data['user'] = user.id
+        # create RiderProfile using the found/created `user` instance
         serializer = RiderProfileSerializer(data=data)
         if serializer.is_valid():
-            profile = serializer.save()
+            # pass the user instance to serializer.save() so the FK is set
+            profile = serializer.save(user=user)
             # mark approved if admin wants
             if data.get('is_approved') in ['true', 'True', True, '1', 1]:
                 profile.is_approved = True
