@@ -99,6 +99,52 @@ class RegisterSerializer(serializers.ModelSerializer):
         
         return data
 
+    def validate(self, data):
+        # Keep the original validation first (passwords + verification)
+        password = data.get('password')
+        password2 = data.get('password2', password)
+        if password != password2:
+            raise serializers.ValidationError('Passwords do not match')
+
+        verification_method = data.get('verification_method')
+        if verification_method == 'email' and not data.get('email'):
+            raise serializers.ValidationError('Email is required when choosing email verification')
+        if verification_method == 'phone' and not data.get('phone'):
+            raise serializers.ValidationError('Phone is required when choosing phone verification')
+
+        # If registering as a rider (driver), require the full set of personal, license, vehicle
+        # and file upload fields. This enforces that drivers supply all necessary information.
+        role = data.get('role') or None
+        # Accept both the role string or the User constant value; we check for 'rider'
+        if role == User.RIDER or (isinstance(role, str) and role.lower() == User.RIDER):
+            required_fields = [
+                'first_name', 'last_name', 'date_of_birth', 'address', 'city', 'state', 'zip_code',
+                'license_number', 'license_expiry', 'license_issued_state',
+                'vehicle_make', 'vehicle_model', 'vehicle_year', 'vehicle_color', 'vehicle_plate', 'vehicle_type',
+            ]
+            required_files = [
+                'profile_photo', 'license_front', 'license_back', 'vehicle_front', 'vehicle_back'
+            ]
+
+            missing = []
+            for f in required_fields:
+                val = data.get(f)
+                if val in [None, '']:
+                    missing.append(f)
+
+            for ff in required_files:
+                # file fields may come through as None if not provided
+                if ff not in data or data.get(ff) in [None, '']:
+                    missing.append(ff)
+
+            if missing:
+                raise serializers.ValidationError({
+                    'detail': 'Missing required driver fields',
+                    'missing_fields': missing
+                })
+
+        return data
+
     def create(self, validated_data):
         validated_data.pop('password2', None)
         verification_method = validated_data.pop('verification_method', 'phone')  # Extract but keep for OTP
