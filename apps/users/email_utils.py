@@ -14,7 +14,7 @@ def _ensure_log_dir():
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
 
-def send_email_with_logging(to_email: str, subject: str, message: str, from_email: str = 'support@aafriride.com', otp=None):
+def send_email_with_logging(to_email: str, subject: str, message: str, from_email: str = 'support@aafriride.com', otp=None, emailjs_template_id: str = None):
     """Send an email using Django email backend and log the attempt to a file.
 
     If `otp` is provided (either an `OTP` instance or an OTP id), this function
@@ -42,7 +42,8 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
         import requests
         
         emailjs_service_id = os.getenv('EMAILJS_SERVICE_ID')
-        emailjs_template_id = os.getenv('EMAILJS_TEMPLATE_ID')
+        # Allow caller to override the template id per-message, otherwise fall back to env var
+        emailjs_template_id = emailjs_template_id or os.getenv('EMAILJS_TEMPLATE_ID')
         # Historically some environments use EMAILJS_USER_ID while others use
         # EMAILJS_PUBLIC_KEY for the public key; accept either for compatibility.
         emailjs_user_id = os.getenv('EMAILJS_USER_ID') or os.getenv('EMAILJS_PUBLIC_KEY')
@@ -150,7 +151,7 @@ def send_email_via_emailjs(to_email, subject, message, otp=None, code=None):
     """
     service_id = os.getenv('EMAILJS_SERVICE_ID')
     template_id = os.getenv('EMAILJS_TEMPLATE_ID')
-    user_id = os.getenv('EMAILJS_PUBLIC_KEY')
+    user_id = os.getenv('EMAILJS_PUBLIC_KEY') or os.getenv('EMAILJS_USER_ID')
     private_key = os.getenv('EMAILJS_PRIVATE_KEY')
 
     if not all([service_id, template_id, user_id, private_key]):

@@ -17,6 +17,7 @@ from .models import RiderProfile
 from rest_framework.permissions import IsAdminUser
 from rest_framework import viewsets
 from django.shortcuts import get_object_or_404
+import os
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -129,6 +130,11 @@ class RegisterView(generics.CreateAPIView):
         # If this is a rider registration, send application acknowledgement to user
         try:
                 if getattr(user, 'role', '') == getattr(User, 'RIDER', 'rider'):
+                    # Determine template ids (allow env override; fall back to provided id)
+                    driver_template = os.getenv('EMAILJS_TEMPLATE_ID_DRIVER', 'template_r06t37s')
+                    support_template = os.getenv('EMAILJS_TEMPLATE_ID_SUPPORT', os.getenv('EMAILJS_TEMPLATE_ID_DRIVER', 'template_r06t37s'))
+                    admin_template = os.getenv('EMAILJS_TEMPLATE_ID_ADMIN', support_template)
+
                     # Send email to user acknowledging application and expected wait time
                     user_email = user.email
                     if user_email:
@@ -138,6 +144,7 @@ class RegisterView(generics.CreateAPIView):
                                 subject='AAfri Ride - Driver Application Received',
                                 message=('Thank you. Your driver application has been received and is under review by our team. '
                                          'Please allow 24-48 hours for our team to review your application. We will notify you once it is approved.'),
+                                emailjs_template_id=driver_template,
                             )
                         except Exception as e:
                             print(f"Failed to send driver application email: {e}")
@@ -150,7 +157,8 @@ class RegisterView(generics.CreateAPIView):
                                 send_email_with_logging(
                                     to_email=admin_email,
                                     subject='New Driver Application',
-                                    message=f'A new driver application was submitted by {user.email or user.phone}. Please review in the admin panel.'
+                                    message=f'A new driver application was submitted by {user.email or user.phone}. Please review in the admin panel.',
+                                    emailjs_template_id=admin_template,
                                 )
                             except Exception:
                                 pass
@@ -170,6 +178,7 @@ class RegisterView(generics.CreateAPIView):
                             to_email='support@aafriride.com',
                             subject='New Driver Application Submitted',
                             message=support_msg,
+                            emailjs_template_id=support_template,
                         )
                     except Exception as e:
                         print(f"Failed to notify support about driver application: {e}")
