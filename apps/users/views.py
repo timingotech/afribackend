@@ -151,6 +151,14 @@ class RegisterView(generics.CreateAPIView):
                                 message=('Thank you. Your driver application has been received and is under review by our team. '
                                          'Please allow 24-48 hours for our team to review your application. We will notify you once it is approved.'),
                                 emailjs_template_id=driver_template,
+                                template_vars={
+                                    'first_name': user.first_name,
+                                    'last_name': user.last_name,
+                                    'applicant_email': user.email,
+                                    'applicant_phone': user.phone or '',
+                                    'application_date': timezone.now().isoformat(),
+                                    'status_url': os.getenv('APPLICATION_STATUS_URL', ''),
+                                }
                             )
                             self._email_send_results['user'] = res_user
                         except Exception as e:
@@ -169,6 +177,14 @@ class RegisterView(generics.CreateAPIView):
                                     subject='New Driver Application',
                                     message=f'A new driver application was submitted by {user.email or user.phone}. Please review in the admin panel.',
                                     emailjs_template_id=admin_template,
+                                    template_vars={
+                                        'first_name': user.first_name,
+                                        'last_name': user.last_name,
+                                        'applicant_email': user.email,
+                                        'applicant_phone': user.phone or '',
+                                        'application_date': timezone.now().isoformat(),
+                                        'admin_review_url': os.getenv('ADMIN_REVIEW_URL', ''),
+                                    }
                                 )
                                 admin_results[admin_email] = res_admin
                             except Exception as e:
@@ -191,6 +207,13 @@ class RegisterView(generics.CreateAPIView):
                             subject='New Driver Application Submitted',
                             message=support_msg,
                             emailjs_template_id=support_template,
+                            template_vars={
+                                'first_name': user.first_name,
+                                'last_name': user.last_name,
+                                'applicant_email': user.email,
+                                'applicant_phone': user.phone or '',
+                                'application_date': timezone.now().isoformat(),
+                            }
                         )
                         self._email_send_results['support'] = res_support
                     except Exception as e:
@@ -503,13 +526,19 @@ class AdminDriverViewSet(viewsets.ViewSet):
             if data.get('is_approved') in ['true', 'True', True, '1', 1]:
                 profile.is_approved = True
                 profile.save()
+
                 # notify user
                 try:
                     if user.email:
                         res_user = send_email_with_logging(
                             to_email=user.email,
                             subject='AAfri Ride - Driver Account Created and Approved',
-                            message='Your driver account was created and approved by admin. You can now login.'
+                            message='Your driver account was created and approved by admin. You can now login.',
+                            template_vars={
+                                'first_name': user.first_name,
+                                'last_name': user.last_name,
+                                'applicant_email': user.email,
+                            }
                         )
                         email_results['user'] = res_user
                 except Exception as e:
@@ -520,7 +549,14 @@ class AdminDriverViewSet(viewsets.ViewSet):
                     res_support = send_email_with_logging(
                         to_email='support@aafriride.com',
                         subject='New Driver Created and Approved',
-                        message=f'Driver {user.email or user.phone} was created and approved by admin.'
+                        message=f'Driver {user.email or user.phone} was created and approved by admin.',
+                        template_vars={
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                            'applicant_email': user.email,
+                            'applicant_phone': user.phone or '',
+                            'application_date': timezone.now().isoformat(),
+                        }
                     )
                     email_results['support'] = res_support
                 except Exception as e:
@@ -555,7 +591,14 @@ class AdminDriverViewSet(viewsets.ViewSet):
                 res_user = send_email_with_logging(
                     to_email=profile.user.email,
                     subject='AAfri Ride - Driver Application Approved',
-                    message='Congratulations — your driver application has been approved. You can now log in and start driving.'
+                    message='Congratulations — your driver application has been approved. You can now log in and start driving.',
+                    template_vars={
+                        'first_name': profile.user.first_name,
+                        'last_name': profile.user.last_name,
+                        'applicant_email': profile.user.email,
+                        'approval_date': timezone.now().isoformat(),
+                        'login_url': os.getenv('FRONTEND_LOGIN_URL', ''),
+                    }
                 )
                 email_results['user'] = res_user
         except Exception as e:
@@ -566,7 +609,14 @@ class AdminDriverViewSet(viewsets.ViewSet):
             res_support = send_email_with_logging(
                 to_email='support@aafriride.com',
                 subject='Driver Application Approved',
-                message=f'Driver {profile.user.email or profile.user.phone} has been approved.'
+                message=f'Driver {profile.user.email or profile.user.phone} has been approved.',
+                template_vars={
+                    'first_name': profile.user.first_name,
+                    'last_name': profile.user.last_name,
+                    'applicant_email': profile.user.email,
+                    'applicant_phone': profile.user.phone or '',
+                    'approval_date': timezone.now().isoformat(),
+                }
             )
             email_results['support'] = res_support
         except Exception as e:
@@ -607,7 +657,14 @@ class AdminDriverViewSet(viewsets.ViewSet):
                 res_user = send_email_with_logging(
                     to_email=profile.user.email,
                     subject='AAfri Ride - Driver Application Not Approved',
-                    message=msg
+                    message=msg,
+                    template_vars={
+                        'first_name': profile.user.first_name,
+                        'last_name': profile.user.last_name,
+                        'applicant_email': profile.user.email,
+                        'disapproval_reason': reason,
+                        'disapproved_at': timezone.now().isoformat(),
+                    }
                 )
                 email_results['user'] = res_user
         except Exception as e:
@@ -618,7 +675,15 @@ class AdminDriverViewSet(viewsets.ViewSet):
             res_support = send_email_with_logging(
                 to_email='support@aafriride.com',
                 subject='Driver Application Disapproved',
-                message=f'Driver {profile.user.email or profile.user.phone} was disapproved. Reason: {reason}'
+                message=f'Driver {profile.user.email or profile.user.phone} was disapproved. Reason: {reason}',
+                template_vars={
+                    'first_name': profile.user.first_name,
+                    'last_name': profile.user.last_name,
+                    'applicant_email': profile.user.email,
+                    'applicant_phone': profile.user.phone or '',
+                    'disapproval_reason': reason,
+                    'disapproved_at': timezone.now().isoformat(),
+                }
             )
             email_results['support'] = res_support
         except Exception as e:

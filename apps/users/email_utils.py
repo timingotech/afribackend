@@ -14,7 +14,7 @@ def _ensure_log_dir():
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
 
-def send_email_with_logging(to_email: str, subject: str, message: str, from_email: str = 'support@aafriride.com', otp=None, emailjs_template_id: str = None):
+def send_email_with_logging(to_email: str, subject: str, message: str, from_email: str = 'support@aafriride.com', otp=None, emailjs_template_id: str = None, template_vars: dict = None):
     """Send an email using Django email backend and log the attempt to a file.
 
     If `otp` is provided (either an `OTP` instance or an OTP id), this function
@@ -53,17 +53,28 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
             # Use EmailJS API
             logger.info(f"Sending email via EmailJS to {to_email}")
             
+            # Build template params and allow caller-provided template_vars to override/add
+            tpl_params = {
+                "to_email": to_email,
+                "subject": subject,
+                "message": message,
+            }
+            # Extract an OTP from the message if present
+            try:
+                if "is: " in message:
+                    tpl_params["otp_code"] = message.split("is: ")[1].split("\n")[0]
+            except Exception:
+                pass
+
+            if template_vars and isinstance(template_vars, dict):
+                tpl_params.update(template_vars)
+
             payload = {
                 "service_id": emailjs_service_id,
                 "template_id": emailjs_template_id,
                 "user_id": emailjs_user_id,
                 "accessToken": emailjs_private_key,
-                "template_params": {
-                    "to_email": to_email,
-                    "subject": subject,
-                    "message": message,
-                    "otp_code": message.split("is: ")[1].split("\n")[0] if "is: " in message else "" # Extract OTP if possible
-                }
+                "template_params": tpl_params,
             }
             
             response = requests.post(
