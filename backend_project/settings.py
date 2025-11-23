@@ -138,6 +138,11 @@ ADMIN_ACCESS_TOKEN_LIFETIME_SECONDS = int(os.getenv('ADMIN_ACCESS_TOKEN_LIFETIME
 
 # CORS
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF trusted origins (comma-separated env var). Add your frontend origin(s) here.
+# Example for local dev: http://localhost:5173
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173').split(',')
 
 # Redis configuration (optional - kept for future use)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')

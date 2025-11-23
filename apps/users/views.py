@@ -462,6 +462,15 @@ class AdminDriverViewSet(viewsets.ViewSet):
                         )
                     except Exception:
                         pass
+                    # also notify support email
+                    try:
+                        send_email_with_logging(
+                            to_email='support@aafriride.com',
+                            subject='New Driver Created and Approved',
+                            message=f'Driver {user.email or user.phone} was created and approved by admin.'
+                        )
+                    except Exception:
+                        pass
 
             return Response(RiderProfileSerializer(profile, context={'request': request}).data, status=status.HTTP_201_CREATED)
         else:
@@ -492,6 +501,15 @@ class AdminDriverViewSet(viewsets.ViewSet):
                     subject='AAfri Ride - Driver Application Approved',
                     message='Congratulations — your driver application has been approved. You can now log in and start driving.'
                 )
+                # Notify support as well
+                try:
+                    send_email_with_logging(
+                        to_email='support@aafriride.com',
+                        subject='Driver Application Approved',
+                        message=f'Driver {profile.user.email or profile.user.phone} has been approved.'
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass
         return Response({'detail': 'approved'})
