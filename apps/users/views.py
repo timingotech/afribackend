@@ -135,35 +135,47 @@ class RegisterView(generics.CreateAPIView):
                     support_template = os.getenv('EMAILJS_TEMPLATE_ID_SUPPORT', os.getenv('EMAILJS_TEMPLATE_ID_DRIVER', 'template_r06t37s'))
                     admin_template = os.getenv('EMAILJS_TEMPLATE_ID_ADMIN', support_template)
 
+                    # Prepare a place to capture send results for later inspection
+                    try:
+                        self._email_send_results = {}
+                    except Exception:
+                        self._email_send_results = {}
+
                     # Send email to user acknowledging application and expected wait time
                     user_email = user.email
                     if user_email:
                         try:
-                            send_email_with_logging(
+                            res_user = send_email_with_logging(
                                 to_email=user_email,
                                 subject='AAfri Ride - Driver Application Received',
                                 message=('Thank you. Your driver application has been received and is under review by our team. '
                                          'Please allow 24-48 hours for our team to review your application. We will notify you once it is approved.'),
                                 emailjs_template_id=driver_template,
                             )
+                            self._email_send_results['user'] = res_user
                         except Exception as e:
-                            print(f"Failed to send driver application email: {e}")
+                            self._email_send_results['user'] = {'success': False, 'result': str(e)}
 
-                    # Notify staff/admin users and support email
+                    # Notify staff/admin users (deduplicated) and record their results
                     try:
                         staff_emails = list(User.objects.filter(is_staff=True).exclude(email__isnull=True).exclude(email__exact='').values_list('email', flat=True))
-                        for admin_email in staff_emails:
+                        # dedupe and exclude the explicit support email to avoid double-send
+                        unique_admins = [e for e in dict.fromkeys(staff_emails) if e and e.lower() != 'support@aafriride.com']
+                        admin_results = {}
+                        for admin_email in unique_admins:
                             try:
-                                send_email_with_logging(
+                                res_admin = send_email_with_logging(
                                     to_email=admin_email,
                                     subject='New Driver Application',
                                     message=f'A new driver application was submitted by {user.email or user.phone}. Please review in the admin panel.',
                                     emailjs_template_id=admin_template,
                                 )
-                            except Exception:
-                                pass
+                                admin_results[admin_email] = res_admin
+                            except Exception as e:
+                                admin_results[admin_email] = {'success': False, 'result': str(e)}
+                        self._email_send_results['admins'] = admin_results
                     except Exception:
-                        pass
+                        self._email_send_results['admins'] = {}
 
                     # Always notify support@aafriride.com with applicant details for operational tracking
                     try:
@@ -174,14 +186,15 @@ class RegisterView(generics.CreateAPIView):
                             f'Phone: {user.phone}\n'
                             f'Registered at: {timezone.now().isoformat()}'
                         )
-                        send_email_with_logging(
+                        res_support = send_email_with_logging(
                             to_email='support@aafriride.com',
                             subject='New Driver Application Submitted',
                             message=support_msg,
                             emailjs_template_id=support_template,
                         )
+                        self._email_send_results['support'] = res_support
                     except Exception as e:
-                        print(f"Failed to notify support about driver application: {e}")
+                        self._email_send_results['support'] = {'success': False, 'result': str(e)}
         except Exception:
             pass
 
