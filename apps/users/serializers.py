@@ -180,7 +180,7 @@ class RiderProfileSerializer(serializers.ModelSerializer):
             'license_number', 'license_expiry', 'license_issued_state', 'license_front', 'license_back',
             'vehicle_make', 'vehicle_model', 'vehicle_year', 'vehicle_color', 'vehicle_plate', 'vehicle_type',
             'profile_photo', 'vehicle_front', 'vehicle_back', 'vehicle_side', 'vehicle_interior',
-            'is_approved', 'is_available', 'submitted_at'
+            'is_approved', 'is_available', 'submitted_at', 'disapproval_reason', 'disapproved_at'
         ]
         read_only_fields = ['id', 'user', 'user_id', 'user_email', 'submitted_at']
 

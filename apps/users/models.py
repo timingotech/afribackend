@@ -95,6 +95,9 @@ class RiderProfile(models.Model):
     is_approved = models.BooleanField(default=False)
     is_available = models.BooleanField(default=False)
     submitted_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    # Disapproval tracking: optional reason and timestamp when admin rejects an application
+    disapproval_reason = models.TextField(null=True, blank=True)
+    disapproved_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f'RiderProfile({self.user})'

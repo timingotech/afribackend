@@ -142,7 +142,14 @@ CORS_ALLOW_CREDENTIALS = True
 
 # CSRF trusted origins (comma-separated env var). Add your frontend origin(s) here.
 # Example for local dev: http://localhost:5173
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://localhost:5173').split(',')
+# Include the production frontend origin by default so cross-site POSTs from
+# the deployed site are accepted unless overridden via env var.
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    'http://localhost:5173,https://aafriride.com,https://www.aafriride.com',
+).split(',')
+# Trim any accidental whitespace and drop empty entries
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in CSRF_TRUSTED_ORIGINS if o.strip()]
 
 # Redis configuration (optional - kept for future use)
 REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')

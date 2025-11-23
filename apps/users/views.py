@@ -514,6 +514,54 @@ class AdminDriverViewSet(viewsets.ViewSet):
             pass
         return Response({'detail': 'approved'})
 
+    @staticmethod
+    def disapprove(request, pk=None):
+        # Ensure only admin users can call this endpoint
+        if not getattr(request, 'user', None) or not request.user.is_staff:
+            return Response({'detail': 'Admin privileges required'}, status=status.HTTP_403_FORBIDDEN)
+
+        profile = get_object_or_404(RiderProfile, pk=pk)
+        # Accept an optional reason in JSON body
+        reason = ''
+        try:
+            reason = request.data.get('reason', '')
+        except Exception:
+            try:
+                # fallback to POST/FORM
+                reason = request.POST.get('reason', '')
+            except Exception:
+                reason = ''
+
+        profile.is_approved = False
+        profile.disapproval_reason = reason or None
+        profile.disapproved_at = timezone.now()
+        profile.save()
+
+        # notify the user with the reason
+        try:
+            if profile.user and profile.user.email:
+                msg = 'We are sorry to inform you that your driver application was not approved.'
+                if reason:
+                    msg += f"\n\nReason provided by admin: {reason}"
+                send_email_with_logging(
+                    to_email=profile.user.email,
+                    subject='AAfri Ride - Driver Application Not Approved',
+                    message=msg
+                )
+                # also notify support
+                try:
+                    send_email_with_logging(
+                        to_email='support@aafriride.com',
+                        subject='Driver Application Disapproved',
+                        message=f'Driver {profile.user.email or profile.user.phone} was disapproved. Reason: {reason}'
+                    )
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return Response({'detail': 'disapproved'})
+
 
 @api_view(['GET'])
 @permission_classes([permissions.AllowAny])
