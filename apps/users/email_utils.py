@@ -43,7 +43,9 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
         
         emailjs_service_id = os.getenv('EMAILJS_SERVICE_ID')
         emailjs_template_id = os.getenv('EMAILJS_TEMPLATE_ID')
-        emailjs_user_id = os.getenv('EMAILJS_USER_ID') # Public Key
+        # Historically some environments use EMAILJS_USER_ID while others use
+        # EMAILJS_PUBLIC_KEY for the public key; accept either for compatibility.
+        emailjs_user_id = os.getenv('EMAILJS_USER_ID') or os.getenv('EMAILJS_PUBLIC_KEY')
         emailjs_private_key = os.getenv('EMAILJS_PRIVATE_KEY') # Private Key
         
         if emailjs_service_id and emailjs_template_id and emailjs_user_id:

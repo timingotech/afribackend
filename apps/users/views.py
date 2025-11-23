@@ -128,33 +128,51 @@ class RegisterView(generics.CreateAPIView):
 
         # If this is a rider registration, send application acknowledgement to user
         try:
-            if getattr(user, 'role', '') == getattr(User, 'RIDER', 'rider'):
-                # Send email to user acknowledging application
-                user_email = user.email
-                if user_email:
-                    try:
-                        send_email_with_logging(
-                            to_email=user_email,
-                            subject='AAfri Ride - Driver Application Received',
-                            message='Thank you. Your driver application has been received and is under review by our team. We will notify you once it is approved.'
-                        )
-                    except Exception as e:
-                        print(f"Failed to send driver application email: {e}")
-
-                # Notify staff/admin users
-                try:
-                    staff_emails = list(User.objects.filter(is_staff=True).exclude(email__isnull=True).exclude(email__exact='').values_list('email', flat=True))
-                    for admin_email in staff_emails:
+                if getattr(user, 'role', '') == getattr(User, 'RIDER', 'rider'):
+                    # Send email to user acknowledging application and expected wait time
+                    user_email = user.email
+                    if user_email:
                         try:
                             send_email_with_logging(
-                                to_email=admin_email,
-                                subject='New Driver Application',
-                                message=f'A new driver application was submitted by {user.email or user.phone}. Please review in the admin panel.'
+                                to_email=user_email,
+                                subject='AAfri Ride - Driver Application Received',
+                                message=('Thank you. Your driver application has been received and is under review by our team. '
+                                         'Please allow 24-48 hours for our team to review your application. We will notify you once it is approved.'),
                             )
-                        except Exception:
-                            pass
-                except Exception:
-                    pass
+                        except Exception as e:
+                            print(f"Failed to send driver application email: {e}")
+
+                    # Notify staff/admin users and support email
+                    try:
+                        staff_emails = list(User.objects.filter(is_staff=True).exclude(email__isnull=True).exclude(email__exact='').values_list('email', flat=True))
+                        for admin_email in staff_emails:
+                            try:
+                                send_email_with_logging(
+                                    to_email=admin_email,
+                                    subject='New Driver Application',
+                                    message=f'A new driver application was submitted by {user.email or user.phone}. Please review in the admin panel.'
+                                )
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+
+                    # Always notify support@aafriride.com with applicant details for operational tracking
+                    try:
+                        support_msg = (
+                            f'New driver application received:\n\n'
+                            f'Name: {user.first_name} {user.last_name}\n'
+                            f'Email: {user.email}\n'
+                            f'Phone: {user.phone}\n'
+                            f'Registered at: {timezone.now().isoformat()}'
+                        )
+                        send_email_with_logging(
+                            to_email='support@aafriride.com',
+                            subject='New Driver Application Submitted',
+                            message=support_msg,
+                        )
+                    except Exception as e:
+                        print(f"Failed to notify support about driver application: {e}")
         except Exception:
             pass
 
@@ -178,6 +196,7 @@ class RegisterView(generics.CreateAPIView):
                 else:
                     user_phone = request.data.get('phone')
                     response.data['detail'] = 'User registered successfully. Check your phone for OTP verification code.'
+                    self._email_send_results = {}
                     response.data['verification_method'] = 'phone'
                     response.data['contact'] = user_phone
                     # Get the latest OTP for this phone
@@ -196,6 +215,15 @@ class RegisterView(generics.CreateAPIView):
                 {'detail': f'Registration error: {str(e)}'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        # Attach email send results collected during perform_create (if any)
+        try:
+            if hasattr(self, '_email_send_results') and isinstance(response.data, dict):
+                response.data['email_send_results'] = getattr(self, '_email_send_results', {})
+        except Exception:
+            pass
+        return super().finalize_response(request, response, *args, **kwargs)
 
 
 class ProfileView(generics.RetrieveUpdateAPIView):
@@ -449,30 +477,35 @@ class AdminDriverViewSet(viewsets.ViewSet):
             # pass the user instance to serializer.save() so the FK is set
             profile = serializer.save(user=user)
             # mark approved if admin wants
+            email_results = {}
             if data.get('is_approved') in ['true', 'True', True, '1', 1]:
                 profile.is_approved = True
                 profile.save()
                 # notify user
-                if user.email:
-                    try:
-                        send_email_with_logging(
+                try:
+                    if user.email:
+                        res_user = send_email_with_logging(
                             to_email=user.email,
                             subject='AAfri Ride - Driver Account Created and Approved',
                             message='Your driver account was created and approved by admin. You can now login.'
                         )
-                    except Exception:
-                        pass
-                    # also notify support email
-                    try:
-                        send_email_with_logging(
-                            to_email='support@aafriride.com',
-                            subject='New Driver Created and Approved',
-                            message=f'Driver {user.email or user.phone} was created and approved by admin.'
-                        )
-                    except Exception:
-                        pass
+                        email_results['user'] = res_user
+                except Exception as e:
+                    email_results['user'] = {'success': False, 'result': str(e)}
 
-            return Response(RiderProfileSerializer(profile, context={'request': request}).data, status=status.HTTP_201_CREATED)
+                # also notify support email
+                try:
+                    res_support = send_email_with_logging(
+                        to_email='support@aafriride.com',
+                        subject='New Driver Created and Approved',
+                        message=f'Driver {user.email or user.phone} was created and approved by admin.'
+                    )
+                    email_results['support'] = res_support
+                except Exception as e:
+                    email_results['support'] = {'success': False, 'result': str(e)}
+
+            serialized = RiderProfileSerializer(profile, context={'request': request}).data
+            return Response({'profile': serialized, 'email_send_results': email_results}, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -493,26 +526,31 @@ class AdminDriverViewSet(viewsets.ViewSet):
         profile = get_object_or_404(RiderProfile, pk=pk)
         profile.is_approved = True
         profile.save()
+        email_results = {}
         # notify the user
         try:
             if profile.user and profile.user.email:
-                send_email_with_logging(
+                res_user = send_email_with_logging(
                     to_email=profile.user.email,
                     subject='AAfri Ride - Driver Application Approved',
                     message='Congratulations — your driver application has been approved. You can now log in and start driving.'
                 )
-                # Notify support as well
-                try:
-                    send_email_with_logging(
-                        to_email='support@aafriride.com',
-                        subject='Driver Application Approved',
-                        message=f'Driver {profile.user.email or profile.user.phone} has been approved.'
-                    )
-                except Exception:
-                    pass
-        except Exception:
-            pass
-        return Response({'detail': 'approved'})
+                email_results['user'] = res_user
+        except Exception as e:
+            email_results['user'] = {'success': False, 'result': str(e)}
+
+        # Notify support as well
+        try:
+            res_support = send_email_with_logging(
+                to_email='support@aafriride.com',
+                subject='Driver Application Approved',
+                message=f'Driver {profile.user.email or profile.user.phone} has been approved.'
+            )
+            email_results['support'] = res_support
+        except Exception as e:
+            email_results['support'] = {'success': False, 'result': str(e)}
+
+        return Response({'detail': 'approved', 'email_send_results': email_results})
 
     @staticmethod
     def disapprove(request, pk=None):
@@ -537,30 +575,34 @@ class AdminDriverViewSet(viewsets.ViewSet):
         profile.disapproved_at = timezone.now()
         profile.save()
 
+        email_results = {}
         # notify the user with the reason
         try:
             if profile.user and profile.user.email:
                 msg = 'We are sorry to inform you that your driver application was not approved.'
                 if reason:
                     msg += f"\n\nReason provided by admin: {reason}"
-                send_email_with_logging(
+                res_user = send_email_with_logging(
                     to_email=profile.user.email,
                     subject='AAfri Ride - Driver Application Not Approved',
                     message=msg
                 )
-                # also notify support
-                try:
-                    send_email_with_logging(
-                        to_email='support@aafriride.com',
-                        subject='Driver Application Disapproved',
-                        message=f'Driver {profile.user.email or profile.user.phone} was disapproved. Reason: {reason}'
-                    )
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                email_results['user'] = res_user
+        except Exception as e:
+            email_results['user'] = {'success': False, 'result': str(e)}
 
-        return Response({'detail': 'disapproved'})
+        # also notify support
+        try:
+            res_support = send_email_with_logging(
+                to_email='support@aafriride.com',
+                subject='Driver Application Disapproved',
+                message=f'Driver {profile.user.email or profile.user.phone} was disapproved. Reason: {reason}'
+            )
+            email_results['support'] = res_support
+        except Exception as e:
+            email_results['support'] = {'success': False, 'result': str(e)}
+
+        return Response({'detail': 'disapproved', 'email_send_results': email_results})
 
 
 @api_view(['GET'])
