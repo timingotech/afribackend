@@ -540,9 +540,15 @@ class AdminDriverViewSet(viewsets.ViewSet):
                                 'applicant_email': user.email,
                             }
                         )
-                        email_results['user'] = res_user
+                        # Convert result to a simple user-facing sentence
+                        if isinstance(res_user, dict) and res_user.get('success'):
+                            email_results['user'] = f"Email sent to {user.email}"
+                        else:
+                            # include failure reason if available
+                            reason = res_user.get('result') if isinstance(res_user, dict) else str(res_user)
+                            email_results['user'] = f"Failed to send email to {user.email}: {reason}"
                 except Exception as e:
-                    email_results['user'] = {'success': False, 'result': str(e)}
+                    email_results['user'] = f"Failed to send email to {user.email}: {str(e)}"
 
                 # also notify support email
                 try:
@@ -558,12 +564,20 @@ class AdminDriverViewSet(viewsets.ViewSet):
                             'application_date': timezone.now().isoformat(),
                         }
                     )
-                    email_results['support'] = res_support
+                    if isinstance(res_support, dict) and res_support.get('success'):
+                        email_results['support'] = f"Email sent to support@aafriride.com"
+                    else:
+                        reason = res_support.get('result') if isinstance(res_support, dict) else str(res_support)
+                        email_results['support'] = f"Failed to send email to support@aafriride.com: {reason}"
                 except Exception as e:
-                    email_results['support'] = {'success': False, 'result': str(e)}
+                    email_results['support'] = f"Failed to send email to support@aafriride.com: {str(e)}"
 
             serialized = RiderProfileSerializer(profile, context={'request': request}).data
-            return Response({'profile': serialized, 'email_send_results': email_results}, status=status.HTTP_201_CREATED)
+            # Always return a simple message when the profile is created
+            detail_msg = 'Driver profile created successfully.'
+            if data.get('is_approved') in ['true', 'True', True, '1', 1]:
+                detail_msg = 'Driver profile created and approved.'
+            return Response({'detail': detail_msg, 'profile': serialized, 'email_send_results': email_results}, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -596,9 +610,13 @@ class AdminDriverViewSet(viewsets.ViewSet):
                         'login_url': os.getenv('FRONTEND_LOGIN_URL', ''),
                     }
                 )
-                email_results['user'] = res_user
+                if isinstance(res_user, dict) and res_user.get('success'):
+                    email_results['user'] = f"Approval email sent to {profile.user.email}"
+                else:
+                    reason = res_user.get('result') if isinstance(res_user, dict) else str(res_user)
+                    email_results['user'] = f"Failed to send approval email to {profile.user.email}: {reason}"
         except Exception as e:
-            email_results['user'] = {'success': False, 'result': str(e)}
+            email_results['user'] = f"Failed to send approval email to {profile.user.email}: {str(e)}"
 
         # Notify support as well
         try:
@@ -614,11 +632,16 @@ class AdminDriverViewSet(viewsets.ViewSet):
                     'approval_date': timezone.now().isoformat(),
                 }
             )
-            email_results['support'] = res_support
+            if isinstance(res_support, dict) and res_support.get('success'):
+                email_results['support'] = f"Notification sent to support@aafriride.com"
+            else:
+                reason = res_support.get('result') if isinstance(res_support, dict) else str(res_support)
+                email_results['support'] = f"Failed to notify support@aafriride.com: {reason}"
         except Exception as e:
-            email_results['support'] = {'success': False, 'result': str(e)}
+            email_results['support'] = f"Failed to notify support@aafriride.com: {str(e)}"
 
-        return Response({'detail': 'approved', 'email_send_results': email_results})
+        # Return a simple approval message and plain email results
+        return Response({'detail': 'Driver application approved.', 'email_send_results': email_results})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
     def disapprove(self, request, pk=None):
@@ -658,9 +681,13 @@ class AdminDriverViewSet(viewsets.ViewSet):
                         'disapproved_at': timezone.now().isoformat(),
                     }
                 )
-                email_results['user'] = res_user
+                if isinstance(res_user, dict) and res_user.get('success'):
+                    email_results['user'] = f"Disapproval email sent to {profile.user.email}"
+                else:
+                    reason_text = res_user.get('result') if isinstance(res_user, dict) else str(res_user)
+                    email_results['user'] = f"Failed to send disapproval email to {profile.user.email}: {reason_text}"
         except Exception as e:
-            email_results['user'] = {'success': False, 'result': str(e)}
+            email_results['user'] = f"Failed to send disapproval email to {profile.user.email}: {str(e)}"
 
         # also notify support
         try:
@@ -677,11 +704,15 @@ class AdminDriverViewSet(viewsets.ViewSet):
                     'disapproved_at': timezone.now().isoformat(),
                 }
             )
-            email_results['support'] = res_support
+            if isinstance(res_support, dict) and res_support.get('success'):
+                email_results['support'] = f"Notification sent to support@aafriride.com"
+            else:
+                reason_text = res_support.get('result') if isinstance(res_support, dict) else str(res_support)
+                email_results['support'] = f"Failed to notify support@aafriride.com: {reason_text}"
         except Exception as e:
-            email_results['support'] = {'success': False, 'result': str(e)}
+            email_results['support'] = f"Failed to notify support@aafriride.com: {str(e)}"
 
-        return Response({'detail': 'disapproved', 'email_send_results': email_results})
+        return Response({'detail': 'Driver application disapproved.', 'email_send_results': email_results})
 
 
 @api_view(['GET'])
