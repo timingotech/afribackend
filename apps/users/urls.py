@@ -28,10 +28,4 @@ urlpatterns = [
 ]
 
 urlpatterns += router.urls
-
- # add explicit approve route for convenience
-from django.urls import re_path
-urlpatterns += [
-    re_path(r'^admin/drivers/(?P<pk>\d+)/approve/$', AdminDriverViewSet.approve, name='admin_driver_approve'),
-    re_path(r'^admin/drivers/(?P<pk>\d+)/disapprove/$', AdminDriverViewSet.disapprove, name='admin_driver_disapprove'),
-]
+urlpatterns += []

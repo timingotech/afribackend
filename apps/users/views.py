@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from django.contrib.auth import get_user_model
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .serializers import CustomTokenObtainPairSerializer
 from .serializers import RegisterSerializer, UserSerializer, ProfileSerializer, DeviceSerializer, OTPSerializer
@@ -575,12 +575,8 @@ class AdminDriverViewSet(viewsets.ViewSet):
             return Response(RiderProfileSerializer(profile, context={'request': request}).data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    @staticmethod
-    def approve(request, pk=None):
-        # Ensure only admin users can call this endpoint
-        if not getattr(request, 'user', None) or not request.user.is_staff:
-            return Response({'detail': 'Admin privileges required'}, status=status.HTTP_403_FORBIDDEN)
-
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def approve(self, request, pk=None):
         profile = get_object_or_404(RiderProfile, pk=pk)
         profile.is_approved = True
         profile.save()
@@ -624,12 +620,8 @@ class AdminDriverViewSet(viewsets.ViewSet):
 
         return Response({'detail': 'approved', 'email_send_results': email_results})
 
-    @staticmethod
-    def disapprove(request, pk=None):
-        # Ensure only admin users can call this endpoint
-        if not getattr(request, 'user', None) or not request.user.is_staff:
-            return Response({'detail': 'Admin privileges required'}, status=status.HTTP_403_FORBIDDEN)
-
+    @action(detail=True, methods=['post'], permission_classes=[IsAdminUser])
+    def disapprove(self, request, pk=None):
         profile = get_object_or_404(RiderProfile, pk=pk)
         # Accept an optional reason in JSON body
         reason = ''
