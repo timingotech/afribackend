@@ -9,7 +9,7 @@ from .models import OTP, Device
 from django.utils import timezone
 import random
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.conf import settings
 from .email_utils import send_email_with_logging
 from .serializers import RiderProfileSerializer
@@ -72,7 +72,8 @@ class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser]
+    # Accept JSON as well as form/multipart so clients can POST JSON when not uploading files
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
         user = serializer.save()
