@@ -86,6 +86,7 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
             
             if response.status_code == 200:
                 result = 1
+                result_text = "OK"
                 logger.info(f"EmailJS sent successfully to {to_email}")
             else:
                 raise Exception(f"EmailJS failed: {response.text}")
@@ -95,11 +96,24 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
             connection = get_connection()
             email = EmailMessage(subject=subject, body=message, from_email=from_email, to=[to_email], connection=connection)
             result = email.send(fail_silently=False)
+            result_text = f"sent ({int(result)} recipients)"
             
-        log_line += f"RESULT={result}\n"
+        # Normalize returned result into a readable string and keep raw result as well
+        try:
+            raw_result = int(result) if isinstance(result, (int, float, str)) and str(result).isdigit() else result
+        except Exception:
+            raw_result = result
+        # ensure result_text exists (EmailJS branch sets it earlier)
+        if 'result_text' not in locals():
+            if isinstance(raw_result, int):
+                result_text = f"sent ({raw_result} recipients)"
+            else:
+                result_text = str(raw_result)
+
+        log_line += f"RESULT={result_text}\n"
         with open(LOG_PATH, 'a', encoding='utf-8') as f:
             f.write(log_line)
-        logger.info(f"Email sent to {to_email} (result={result})")
+        logger.info(f"Email sent to {to_email} (result={result_text})")
 
         # Persist send result to DB if otp provided
         if otp is not None:
@@ -108,7 +122,10 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
                 # Accept either OTP instance or numeric id
                 if hasattr(otp, 'save') and hasattr(otp, 'pk'):
                     otp.sent_at = _tz.now()
-                    otp.send_result = int(result) if isinstance(result, int) else 1
+                    try:
+                        otp.send_result = int(raw_result) if isinstance(raw_result, int) else (int(raw_result) if isinstance(raw_result, str) and raw_result.isdigit() else 1)
+                    except Exception:
+                        otp.send_result = 1
                     otp.send_error = ''
                     otp.save(update_fields=['sent_at', 'send_result', 'send_error'])
                 else:
@@ -116,13 +133,17 @@ def send_email_with_logging(to_email: str, subject: str, message: str, from_emai
                     o = _OTP.objects.filter(pk=otp).first()
                     if o:
                         o.sent_at = _tz.now()
-                        o.send_result = int(result) if isinstance(result, int) else 1
+                        try:
+                            o.send_result = int(raw_result) if isinstance(raw_result, int) else (int(raw_result) if isinstance(raw_result, str) and raw_result.isdigit() else 1)
+                        except Exception:
+                            o.send_result = 1
                         o.send_error = ''
                         o.save(update_fields=['sent_at', 'send_result', 'send_error'])
             except Exception:
                 logger.exception('Failed to persist OTP send result to DB')
 
-        return {"success": True, "result": result}
+        # Return both a human-readable summary and the raw result for debugging
+        return {"success": True, "result": result_text, "raw_result": raw_result}
         
     except Exception as e:
         last_error = e

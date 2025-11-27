@@ -12,3 +12,15 @@
 2025-11-20T14:59:10.288606+00:00 | TO=sim-customer@example.com | SUBJECT=Sim OTP | RESULT=1
 2025-11-20T17:38:43.990992+00:00 | TO=oyenugaridwan@gmail.com | SUBJECT=Test from send_email_with_logging | RESULT=1 (attempt 1)
 2025-11-20T19:28:08.218979+00:00 | TO=oyenugaridwan@gmail.com | SUBJECT=Test from send_email_with_logging | RESULT=1 (attempt 1)
+2025-11-27T18:38:44.683521+00:00 | TO=taonuga@gmail.com | SUBJECT=AAfri Ride - Driver Application Approved | RESULT=1
+2025-11-27T18:38:52.816449+00:00 | TO=support@aafriride.com | SUBJECT=Driver Application Approved | RESULT=1
+2025-11-27T18:40:58.676980+00:00 | TO=test_rider_20251123024310@example.com | SUBJECT=AAfri Ride - Driver Application Not Approved | RESULT=OK
+2025-11-27T18:41:04.498260+00:00 | TO=support@aafriride.com | SUBJECT=Driver Application Disapproved | RESULT=OK
+2025-11-27T18:41:10.371713+00:00 | TO=test_rider_20251123024310@example.com | SUBJECT=AAfri Ride - Driver Application Not Approved | RESULT=OK
+2025-11-27T18:41:15.770181+00:00 | TO=support@aafriride.com | SUBJECT=Driver Application Disapproved | RESULT=OK
+2025-11-27T18:42:04.124234+00:00 | TO=test_rider_20251123024310@example.com | SUBJECT=AAfri Ride - Driver Application Not Approved | RESULT=OK
+2025-11-27T18:42:10.736226+00:00 | TO=support@aafriride.com | SUBJECT=Driver Application Disapproved | RESULT=OK
+2025-11-27T18:42:55.688928+00:00 | TO=test_rider_20251123024310@example.com | SUBJECT=AAfri Ride - Driver Application Not Approved | RESULT=OK
+2025-11-27T18:43:04.833071+00:00 | TO=support@aafriride.com | SUBJECT=Driver Application Disapproved | RESULT=OK
+2025-11-27T18:43:49.036121+00:00 | TO=test_rider_20251123024310@example.com | SUBJECT=AAfri Ride - Driver Application Approved | RESULT=OK
+2025-11-27T18:43:54.570091+00:00 | TO=support@aafriride.com | SUBJECT=Driver Application Approved | RESULT=OK
