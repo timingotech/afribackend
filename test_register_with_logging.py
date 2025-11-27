@@ -32,7 +32,7 @@ print(f"{'='*70}\n")
 
 # Make registration request
 response = client.post(
-    'http://localhost:8000/api/users/register/',
+    'http://localhost:8001/api/users/register/',
     data=json.dumps({
         'email': test_email,
         'password': 'TestPassword123!',

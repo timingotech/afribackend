@@ -34,7 +34,7 @@ docker-compose exec web python manage.py migrate
 docker-compose exec web python manage.py createsuperuser
 ```
 
-5. API docs available at `http://localhost:8000/api/docs/`.
+5. API docs available at `http://localhost:8001/api/docs/`.
 
 Notes:
 - This is a scaffold intended to be extended. Payment gateways, push notifications, and real SMS should be integrated in production.

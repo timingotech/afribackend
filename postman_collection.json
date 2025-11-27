@@ -10,7 +10,7 @@
         "method": "POST",
         "header": [{"key": "Content-Type", "value": "application/json"}],
         "body": {"mode": "raw", "raw": "{ \"email\": \"user@example.com\", \"password\": \"pass1234\", \"password2\": \"pass1234\" }"},
-        "url": {"raw": "http://localhost:8000/api/users/register/", "host": ["http://localhost:8000"], "path": ["api","users","register",""]}
+        "url": {"raw": "http://localhost:8001/api/users/register/", "host": ["http://localhost:8001"], "path": ["api","users","register",""]}
       }
     }
   ]

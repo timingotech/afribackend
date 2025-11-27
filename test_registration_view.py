@@ -45,7 +45,7 @@ try:
         print("FAILED: Registration did not return 201")
         
 except requests.exceptions.ConnectionError:
-    print("ERROR: Could not connect to http://localhost:8000")
+    print("ERROR: Could not connect to http://localhost:8001")
     print("Make sure Django development server is running")
 except Exception as e:
     print(f"ERROR: {e}")

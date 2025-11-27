@@ -14,7 +14,7 @@ from datetime import datetime
 import os
 
 # Configuration
-API_BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8000/api')
+API_BASE_URL = os.getenv('BACKEND_URL', 'http://localhost:8001/api')
 TEST_EMAIL = "taonuga01@gmail.com"
 TEST_PASSWORD = "SecurePass123!"
 TEST_FIRST_NAME = "Test"

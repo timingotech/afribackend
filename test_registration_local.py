@@ -21,11 +21,11 @@ data = {
 }
 
 print(f"Test Email: {test_email}")
-print("Making POST request to http://localhost:8000/api/users/register/\n")
+print("Making POST request to http://localhost:8001/api/users/register/\n")
 
 try:
     response = requests.post(
-        'http://localhost:8000/api/users/register/',
+        'http://localhost:8001/api/users/register/',
         json=data,
         timeout=30
     )
@@ -43,7 +43,7 @@ try:
         print("FAILED: Local registration did not return 201")
 
 except requests.exceptions.ConnectionError as e:
-    print("ERROR: Could not connect to local server at http://localhost:8000")
+    print("ERROR: Could not connect to local server at http://localhost:8001")
     print("Make sure Django development server is running (e.g. 'python manage.py runserver')")
     print(f"Details: {e}")
 except Exception as e:

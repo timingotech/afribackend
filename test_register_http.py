@@ -12,7 +12,7 @@ print(f"Testing registration with email verification")
 print(f"Email: {test_email}")
 print(f"{'='*70}\n")
 
-url = "http://localhost:8000/api/users/register/"
+url = "http://localhost:8001/api/users/register/"
 
 payload = {
     'email': test_email,
@@ -44,4 +44,4 @@ try:
         
 except Exception as e:
     print(f"Error: {e}")
-    print("\nMake sure Django development server is running on localhost:8000")
+    print("\nMake sure Django development server is running on localhost:8001")

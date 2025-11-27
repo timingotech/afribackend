@@ -4,7 +4,7 @@
 import requests
 import json
 
-BASE_URL = "http://localhost:8000/api"
+BASE_URL = "http://localhost:8001/api"
 test_email = "taonuga01@gmail.com"
 test_password = "TestPassword123!"
 

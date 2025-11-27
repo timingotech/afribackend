@@ -169,7 +169,7 @@ Content-Type: application/json
 
 ```javascript
 // Trigger OTP generation
-fetch('http://localhost:8000/api/users/otp/generate/', {
+fetch('http://localhost:8001/api/users/otp/generate/', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ phone: '+1234567890' })
@@ -178,7 +178,7 @@ fetch('http://localhost:8000/api/users/otp/generate/', {
 .then(console.log)
 
 // Then verify
-fetch('http://localhost:8000/api/users/otp/verify/', {
+fetch('http://localhost:8001/api/users/otp/verify/', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 

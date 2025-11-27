@@ -152,3 +152,49 @@ class DriverLocation(models.Model):
 
     def __str__(self):
         return f'DriverLocation({self.driver}, {self.lat},{self.lng})'
+
+
+class Payment(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_SUCCESS = 'success'
+    STATUS_FAILED = 'failed'
+    STATUS_REFUNDED = 'refunded'
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_SUCCESS, 'Success'),
+        (STATUS_FAILED, 'Failed'),
+        (STATUS_REFUNDED, 'Refunded'),
+    ]
+
+    trip = models.ForeignKey(Trip, related_name='payments', on_delete=models.CASCADE, null=True, blank=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    provider = models.CharField(max_length=64, default='paystack')
+    reference = models.CharField(max_length=128, unique=True)
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    metadata = models.JSONField(null=True, blank=True)
+    raw_response = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    def mark_paid(self, raw=None):
+        self.status = self.STATUS_SUCCESS
+        self.paid_at = timezone.now()
+        if raw:
+            self.raw_response = raw
+        self.save()
+
+    def mark_failed(self, raw=None):
+        self.status = self.STATUS_FAILED
+        if raw:
+            self.raw_response = raw
+        self.save()
+
+    def mark_refunded(self, raw=None):
+        self.status = self.STATUS_REFUNDED
+        if raw:
+            self.raw_response = raw
+        self.save()
+
+    def __str__(self):
+        return f'Payment({self.reference}, {self.amount}, {self.status})'
