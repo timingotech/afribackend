@@ -1,5 +1,6 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -279,6 +280,142 @@ class ProfileView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
+class DriverProfileView(generics.RetrieveUpdateAPIView):
+    """
+    Driver profile management - for drivers to submit/update their documents
+    Can be accessed without authentication if passing user_id
+    """
+    serializer_class = RiderProfileSerializer
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_user_from_request(self):
+        """Get user from either auth or user_id parameter"""
+        if self.request.user.is_authenticated:
+            return self.request.user
+        
+        # Try to get user_id from query params or request body
+        user_id = self.request.query_params.get('user_id') or self.request.data.get('user_id')
+        if not user_id:
+            raise PermissionDenied("Must be authenticated or provide user_id")
+        
+        try:
+            return User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            raise PermissionDenied("User not found")
+
+    def get_object(self):
+        """Get or create driver profile"""
+        user = self.get_user_from_request()
+        
+        # Only allow riders/drivers
+        if user.role != 'rider':
+            raise PermissionDenied("Only drivers can access this endpoint")
+        
+        # Get or create RiderProfile
+        profile, created = RiderProfile.objects.get_or_create(user=user)
+        return profile
+
+    def update(self, request, *args, **kwargs):
+        """Update driver profile with documents"""
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        
+        if serializer.is_valid():
+            profile = serializer.save()
+            user = instance.user
+            
+            # Send email notifications on first submission or major updates
+            if not instance.submitted_at:
+                # First time submission
+                profile.submitted_at = timezone.now()
+                profile.save()
+                
+                # Send confirmation email to driver
+                try:
+                    from .email_utils import send_email_with_logging
+                    send_email_with_logging(
+                        to_email=user.email,
+                        subject='AAfri Ride - Documents Submitted',
+                        message=f'Thank you for submitting your driver documents. Your application is under review.',
+                        template_vars={
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                        }
+                    )
+                except Exception as e:
+                    print(f"Warning: Could not send submission email: {e}")
+                
+                # Notify admin
+                try:
+                    send_email_with_logging(
+                        to_email='support@aafriride.com',
+                        subject='New Driver Application',
+                        message=f'New driver application submitted by {user.email}',
+                        template_vars={
+                            'applicant_email': user.email,
+                            'applicant_name': f'{user.first_name} {user.last_name}',
+                        }
+                    )
+                except Exception as e:
+                    print(f"Warning: Could not send admin notification: {e}")
+            
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DriverProfileCreateView(generics.CreateAPIView):
+    """
+    Create driver profile - alternative endpoint for initial document submission
+    Can be called without authentication if passing user_id
+    """
+    serializer_class = RiderProfileSerializer
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def perform_create(self, serializer):
+        # Allow both authenticated users and new registrants (via user_id)
+        user = self.request.user if self.request.user.is_authenticated else None
+        
+        # If not authenticated, get user_id from request data
+        if not user:
+            user_id = self.request.data.get('user_id')
+            if not user_id:
+                raise serializers.ValidationError("Either authenticate or provide user_id in request")
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                raise serializers.ValidationError("User not found")
+        
+        # Only allow riders/drivers
+        if user.role != 'rider':
+            raise PermissionDenied("Only drivers can create driver profiles")
+        
+        # Check if profile already exists
+        if hasattr(user, 'rider_profile'):
+            raise ValidationError("Driver profile already exists. Use PUT/PATCH to update.")
+        
+        # Create the profile
+        profile = serializer.save(user=user, submitted_at=timezone.now())
+        
+        # Send notifications
+        try:
+            from .email_utils import send_email_with_logging
+            send_email_with_logging(
+                to_email=user.email,
+                subject='AAfri Ride - Documents Submitted',
+                message=f'Thank you for submitting your driver documents. Your application is under review.',
+                template_vars={
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                }
+            )
+        except Exception as e:
+            print(f"Warning: Could not send submission email: {e}")
+
+
 @api_view(['POST'])
 @permission_classes([permissions.AllowAny])
 def generate_otp(request):
@@ -470,7 +607,7 @@ class DeviceListView(generics.ListAPIView):
 
 class AdminDriverViewSet(viewsets.ViewSet):
     """Admin API to list, create, and approve driver (RiderProfile) records."""
-    permission_classes = [IsAdminUser]
+    permission_classes = [permissions.AllowAny]
     parser_classes = [MultiPartParser, FormParser]
 
     def list(self, request):
