@@ -9,6 +9,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import datetime, timedelta
 from django.conf import settings
+from drf_extra_fields.fields import Base64ImageField
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -58,8 +59,8 @@ class RegisterSerializer(serializers.ModelSerializer):
     license_number = serializers.CharField(write_only=True, required=False, allow_blank=True)
     license_expiry = serializers.DateField(write_only=True, required=False, allow_null=True)
     license_issued_state = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    license_front = serializers.FileField(write_only=True, required=False, allow_null=True)
-    license_back = serializers.FileField(write_only=True, required=False, allow_null=True)
+    license_front = Base64ImageField(write_only=True, required=False, allow_null=True)
+    license_back = Base64ImageField(write_only=True, required=False, allow_null=True)
 
     vehicle_make = serializers.CharField(write_only=True, required=False, allow_blank=True)
     vehicle_model = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -68,11 +69,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     vehicle_plate = serializers.CharField(write_only=True, required=False, allow_blank=True)
     vehicle_type = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
-    profile_photo = serializers.ImageField(write_only=True, required=False, allow_null=True)
-    vehicle_front = serializers.ImageField(write_only=True, required=False, allow_null=True)
-    vehicle_back = serializers.ImageField(write_only=True, required=False, allow_null=True)
-    vehicle_side = serializers.ImageField(write_only=True, required=False, allow_null=True)
-    vehicle_interior = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    profile_photo = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_front = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_back = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_side = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_interior = Base64ImageField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = User
@@ -218,6 +219,15 @@ class RiderProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     user_email = serializers.CharField(source='user.email', read_only=True)
     user_id = serializers.IntegerField(source='user.id', read_only=True)
+
+    # Accept base64 images in JSON payloads for file fields
+    license_front = Base64ImageField(write_only=True, required=False, allow_null=True)
+    license_back = Base64ImageField(write_only=True, required=False, allow_null=True)
+    profile_photo = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_front = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_back = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_side = Base64ImageField(write_only=True, required=False, allow_null=True)
+    vehicle_interior = Base64ImageField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = RiderProfile

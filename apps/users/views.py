@@ -287,7 +287,7 @@ class DriverProfileView(generics.RetrieveUpdateAPIView):
     """
     serializer_class = RiderProfileSerializer
     permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_user_from_request(self):
         """Get user from either auth or user_id parameter"""
@@ -373,7 +373,7 @@ class DriverProfileCreateView(generics.CreateAPIView):
     """
     serializer_class = RiderProfileSerializer
     permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def perform_create(self, serializer):
         # Allow both authenticated users and new registrants (via user_id)
@@ -608,7 +608,7 @@ class DeviceListView(generics.ListAPIView):
 class AdminDriverViewSet(viewsets.ViewSet):
     """Admin API to list, create, and approve driver (RiderProfile) records."""
     permission_classes = [permissions.AllowAny]
-    parser_classes = [MultiPartParser, FormParser]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def list(self, request):
         queryset = RiderProfile.objects.select_related('user').order_by('-submitted_at')
